@@ -1,4 +1,7 @@
-# Scientific Project by Andre Potthoff
+# Code for a lab rotation in the lab of [Anna Levina](https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/self-organization-and-optimality-in-neuronal-networks/)
+
+## Purpose
+We've set out to work with, and analyse the measure of distance to criticality, as proposed by Sam Sooter et. al. (2026) (DOI: [10.1101/2025.08.03.668332](https://www.biorxiv.org/content/10.1101/2025.08.03.668332v2)).
 
 ## Architecture
 
