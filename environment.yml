@@ -1,0 +1,21 @@
+name: Levina_rotation_1
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - scipy
+  - pandas
+  - h5py
+  - matplotlib
+  - jupyterlab
+  - python-dotenv
+  - pytest
+  - black[jupyter]  # Formats code in Python scripts and Jupyter cells
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly         # install CPU-only dependencies without CUDA bloat
+  - pip

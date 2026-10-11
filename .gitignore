@@ -1,0 +1,19 @@
+# Built environments
+.env
+.venv/
+env/
+venv/
+
+# Python caches and outputs
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# OS generated files
+.DS_Store
+Thumbs.db
+

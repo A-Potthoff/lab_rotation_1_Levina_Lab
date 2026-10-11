@@ -1,0 +1,3 @@
+# use jupyter-aware diffing tools for notebooks
+*.ipynb diff=jupyternotebook
+*.ipynb merge=jupyternotebook
