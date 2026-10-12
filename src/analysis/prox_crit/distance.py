@@ -33,9 +33,7 @@ from .kl_rate import get_klr_b, get_sigmac
 from .manifold import beta_lift, beta_project, calc_dbv1, con, explosive, half_order
 
 # Optimizer settings. MATLAB:
-#   optimoptions('fmincon', 'Display','none', 'Algorithm','sqp',
-#                'ConstraintTolerance',0.01, 'MaxFunctionEvaluations',10000,
-#                'StepTolerance',1e-15)
+#   optimoptions('fmincon', 'Display','none', 'Algorithm','sqp', 'ConstraintTolerance',0.01, 'MaxFunctionEvaluations',10000, 'StepTolerance',1e-15)
 # Translation: scipy SLSQP (an SQP method, finite-difference gradients like
 # fmincon). maxiter = fmincon's default MaxIterations for 'sqp' (400).
 # SLSQP has no step/constraint tolerance options; FTOL is its convergence
@@ -73,17 +71,13 @@ def calc_db(
     Parameters
     ----------
     x : array or list of arrays
-        The observed time series. If the time series is segmented, pass the
-        segments as a list, e.g. ``[np.array([1, 2, 3]), np.array([10, 5, 0])]``
-        means two separate segments (MATLAB: cell array).
+        The observed time series. If the time series is segmented, pass the segments as a list, e.g. ``[np.array([1, 2, 3]), np.array([10, 5, 0])]`` means two separate segments (MATLAB: cell array).
     order : int
         The AR model order.
     delta_t : float
-        Time between consecutive points in the time series, in seconds
-        (MATLAB: deltaT).
+        Time between consecutive points in the time series, in seconds (MATLAB: deltaT).
     b : int
-        Type of criticality to calculate proximity to (b = 2, 4, 6, ...,
-        2*order).
+        Type of criticality to calculate proximity to (b = 2, 4, 6, ..., 2*order).
     fit_method : {'YuleWalker', 'MaxLikelihood'}, default 'YuleWalker'
         AR fitting method.
     with_err_bars : bool, default False
@@ -91,9 +85,7 @@ def calc_db(
     with_qc : bool, default False
         If True, make quality control plots (MATLAB: with_QC).
     with_parallel : bool, default False
-        Accepted for API parity with MATLAB (``parfor`` over the gradient
-        components). NOTE: always computed sequentially here; results are
-        identical.
+        Accepted for API parity with MATLAB (``parfor`` over the gradient components). NOTE: always computed sequentially here; results are identical.
 
     Returns
     -------
