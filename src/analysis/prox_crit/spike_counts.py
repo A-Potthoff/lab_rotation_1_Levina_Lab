@@ -48,5 +48,7 @@ def get_spike_counts(st, t1, t2, delta_t):
         return np.zeros(0)
     st = np.asarray(st, dtype=float).ravel()
     spikes = st[(st >= edges[0]) & (st < edges[-1])]
-    bin_index = np.searchsorted(edges, spikes, side="right") - 1  # edges[k] <= spike < edges[k+1]
+    bin_index = (
+        np.searchsorted(edges, spikes, side="right") - 1
+    )  # edges[k] <= spike < edges[k+1]
     return np.bincount(bin_index, minlength=len(edges) - 1).astype(float)

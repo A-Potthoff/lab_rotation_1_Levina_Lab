@@ -33,7 +33,7 @@ $$
 \mathrm{klr}=\frac{1}{4\pi}\int_{-\pi}^{\pi}\Big[\log\frac{\sigma_c^2 g}{g_c}+\frac{g_c}{\sigma_c^2 g}-1\Big]d\omega
 $$
 
-The fitted model's $\sigma$ is set to 1, so $\sigma_c$ is the ratio $\sigma_c/\sigma$ (FLAG 2). The integrand has an integrable log singularity at $\omega=0$, because $g_c(0)=0$ on $M_b$ (CHANGED 1 and 4).
+The fitted model's $\sigma$ is set to 1, so $\sigma_c$ is really the ratio $\sigma_c/\sigma$ (hence `get_sigma_ratio`). The integrand has an integrable log singularity at $\omega=0$, because $g_c(0)=0$ on $M_b$ (CHANGED 1 and 4).
 
 The time-domain identity used in the tests: with $e=(1,-\phi_c)$ and $\Gamma$ the autocovariance matrix of the fitted model,
 
@@ -47,7 +47,7 @@ d_b\,[\text{bits/s}] = \frac{\log_2 e}{\Delta t}\,\min_{\phi_c\in M_b}\mathrm{kl
 \mathrm{sd}(d_b)=\sqrt{-\nabla d_b^\top H^{-1}\nabla d_b}
 $$
 
-Here $H$ is the Hessian of the profile log-likelihood $\ell(\phi)=-\tfrac T2\log\sum r_t^2$, and $\nabla d_b$ is obtained by forward differences (FLAG 13).
+Here $H$ is the Hessian of the profile log-likelihood $\ell(\phi)=-\tfrac T2\log\sum r_t^2$, and $\nabla d_b$ is obtained by forward differences (FLAG 7).
 
 ### AR fitting
 - Yule–Walker: $\Gamma\phi=\gamma$ and $\sigma^2=1-\gamma^\top\phi$.

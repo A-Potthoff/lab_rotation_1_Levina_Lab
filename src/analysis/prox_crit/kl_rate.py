@@ -1,71 +1,54 @@
 """Spectral Kullback-Leibler divergence rate between two AR models.
 
-NOT OWN WORK. Python translation of the local functions ``get_kernw``,
-``get_sigmac`` and ``get_klr_b`` from ``calc_db.m``, prox_crit_toolkit,
-J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit,
-fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff
-(with Claude). Logic unchanged except CHANGED[1]; see FLAGS.md.
+NOT OWN WORK. Python translation of the local functions ``get_kernw``, ``get_sigmac`` and ``get_klr_b`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged except CHANGED[1] and CHANGED[4]; see FLAGS.md.
 
-Formulas (for recognition, no derivation), with w = angular frequency in
-[-pi, pi] (per time step):
+Formulas (for recognition, no derivation), with w = angular frequency in [-pi, pi] (per time step):
 
-* kernel Fourier transform     kern^(w) = sum_{k=1..n} kern_k e^{-i w k}
-* inverse spectral shape        g(w)     = |1 - kern^(w)|^2
-  (the AR power spectrum is sigma^2 / g(w))
-* optimal noise of the critical model (minimises the KL rate over sigma_c):
-                                sigma_c^2 = 1/(2 pi) * int g_c / g dw
-* KL-divergence rate (nats per time step) from the fitted model (sigma := 1)
-  to the critical model (kern_c, sigma_c):
-      klr = 1/(4 pi) * int [ log(sigma_c^2 g / g_c) + g_c / (sigma_c^2 g) - 1 ] dw
+* kernel Fourier transform:   kern^(w) = sum_{k=1..n} kern_k e^{-i w k}
+* inverse spectral shape:     g(w) = |1 - kern^(w)|^2      (the AR power spectrum is sigma^2 / g(w))
+* KL-divergence rate (nats per time step) from the fitted model (kern, sigma) to a critical model (kernc, sigma_c). It depends on the noise levels only through r = sigma_c / sigma::
 
-Abbreviations: kernw = kernel in the frequency domain (w = omega),
-klr = KL rate, sigmac / kernc = noise std / kernel of the critical model,
-_b = on the critical manifold of type b.
+      klr = 1/(4 pi) * int [ log(r^2 g / g_c) + g_c / (r^2 g) - 1 ] dw
 
-Numerical integration: MATLAB ``integral(f, -pi, pi, 'AbsTol', 1e-10)``
-(adaptive Gauss-Kronrod, default RelTol 1e-6, MaxIntervalCount 650) is
-translated to ``scipy.integrate.quad`` with the same tolerances.
+* the ratio r minimizing klr:  r^2 = 1/(2 pi) * int g_c / g dw
+
+Abbreviations: kernw = kernel in the frequency domain (w = omega), klr = KL rate, kernc = kernel of the critical model, _b = on the critical manifold of type b.
+
+Numerical integration: MATLAB's ``integral(f, -pi, pi, 'AbsTol', 1e-10)`` (adaptive Gauss-Kronrod, default RelTol 1e-6, MaxIntervalCount 650) is translated to ``scipy.integrate.quad`` with the same tolerances.
 """
 
 import cmath
 import math
-import warnings
 
 import numpy as np
 from scipy.integrate import quad
 
 from .manifold import beta_lift
 
-# MATLAB integral() settings: 'AbsTol' given in the original; RelTol and
-# MaxIntervalCount are MATLAB's defaults.
+# 'AbsTol' as in the original; RelTol and MaxIntervalCount are MATLAB's integral() defaults.
 QUAD_OPTS = dict(epsabs=1e-10, epsrel=1e-6, limit=650)
 
 
 def get_kernw(kern, w):
-    """Fourier transform of the kernel: sum_{t=1..n} kern_t exp(-i w t).
-
-    Vectorized over w (any shape); the result has the shape of w.
-    """
+    """Fourier transform of the kernel, sum_{t=1..n} kern_t exp(-i w t); vectorized over w (result has the shape of w)."""
     kern = np.asarray(kern, dtype=float).ravel()
     w = np.asarray(w, dtype=float)
-    t = np.arange(1, len(kern) + 1)  # true lags 1..n (kern[t-1] <-> kern(t))
-    return np.exp(-1j * np.multiply.outer(w, t)) @ kern
+    lags = np.arange(
+        1, len(kern) + 1
+    )  # true lags 1..n, the exponent needs them (not indices 0..n-1)
+    return np.exp(-1j * np.multiply.outer(w, lags)) @ kern
 
 
-def _inv_spectrum(kern):
-    """Return the function g(w) = |1 - kern^(w)|^2 (inverse spectral shape).
+def inv_spectrum(kern):
+    """Return the function g(w) = |1 - kern^(w)|^2 (inverse spectral shape) of an AR kernel.
 
-    Speed only, same formula as ``abs(1 - get_kernw(kern, w)).^2`` in MATLAB:
-    array input uses the vectorized get_kernw; scalar input (what
-    scipy's quad passes, one point per call) evaluates
-    kern^(w) = sum_t kern_t z^t, z = e^{-iw}, with Horner's rule in plain
-    Python, avoiding ~10x numpy call overhead per point.
+    Array input uses the vectorized get_kernw. Scalar input, which is what quad passes (one point per call), evaluates kern^(w) = sum_t kern_t z^t with z = e^{-iw} by Horner's rule in plain Python: same formula, ~10x less overhead per point.
     """
     kern = np.asarray(kern, dtype=float).ravel()
     coeffs_high_first = [float(c) for c in kern[::-1]]  # kern_n, ..., kern_1
 
     def g(w):
-        if isinstance(w, float):  # scalar (quad passes Python floats)
+        if isinstance(w, float):
             z = cmath.exp(-1j * w)
             p = 0j
             for c in coeffs_high_first:  # p = z(kern_1 + z(kern_2 + ... z kern_n))
@@ -76,81 +59,76 @@ def _inv_spectrum(kern):
     return g
 
 
-def get_sigmac(kern, kernc):
-    """Value of sigma_c that minimizes the KL div. rate for given kern, kernc.
+def get_sigma_ratio(kern, kernc):
+    """Noise ratio r = sigma_c / sigma of the critical model that minimizes the KL rate: r^2 = 1/(2 pi) int g_c / g dw.
 
-    sigma_c = sqrt( 1/(2 pi) * int_{-pi}^{pi} g_c(w) / g(w) dw )
-
-    FLAG[2]: the fitted model's noise sigma is implicitly 1 here (and in
-    get_klr_b), so sigma_c is really the RATIO sigma_c / sigma. This is
-    consistent (the KL rate only depends on that ratio) but easy to misread.
+    Named ``get_sigmac`` in the original, which suggests the absolute noise std of the critical model. The formula sets the fitted model's sigma to 1, so the value is the ratio sigma_c / sigma (the KL rate depends only on this ratio). The absolute value is sigma * r.
     """
-    g = _inv_spectrum(kern)  # fitted model
-    gc = _inv_spectrum(kernc)  # critical model
+    g = inv_spectrum(kern)
+    gc = inv_spectrum(kernc)
 
-    def fun(w):
+    def integrand(w):
         return 1 / (2 * np.pi) * gc(w) / g(w)
 
-    val, _ = quad(fun, -np.pi, np.pi, **QUAD_OPTS)
-    return np.sqrt(val)
+    value, _ = quad(integrand, -np.pi, np.pi, **QUAD_OPTS)
+    return np.sqrt(value)
 
 
 def get_klr_b(kern, kernc, b, int_method):
-    """KL div. rate between two AR models, one of which lies on M_b.
+    """KL divergence rate from the AR model ``kern`` to the critical model on M_b given by the reduced kernel ``kernc``.
 
     Parameters
     ----------
     kern : (n,) array
-        Kernel of an AR(n) model (the fitted model).
+        Kernel of the fitted AR(n) model.
     kernc : (n - b/2,) array
-        REDUCED kernel of an AR(n) model on M_b (lifted inside, beta_lift).
+        REDUCED kernel of a model on M_b (lifted to the full kernel inside).
     b : int
         Which critical manifold.
     int_method : {'trapz', 'integral'}
-        Fixed 1000-point trapezoid rule, or adaptive quadrature.
+        Fixed 1000-point trapezoid rule, or adaptive quadrature (used for the optimization).
 
     Returns
     -------
     klr : float
-        KL divergence rate in nats per time step (see module docstring).
+        KL divergence rate in nats per time step, with the optimal noise ratio (see module docstring).
     """
     kernc = beta_lift(kernc, b)
-    sigmac = get_sigmac(kern, kernc)
-    g = _inv_spectrum(kern)
-    gc = _inv_spectrum(kernc)
-    s2 = sigmac**2
+    sigma_ratio_sq = get_sigma_ratio(kern, kernc) ** 2
+    g = inv_spectrum(kern)
+    gc = inv_spectrum(kernc)
 
-    def fun2(w):
+    def integrand(w):
         gw, gcw = g(w), gc(w)
-        if isinstance(w, float):  # scalar (quad): math.log avoids numpy overhead
+        if isinstance(w, float):  # quad, one point at a time
             if gcw == 0.0:
-                # CHANGED[4]: for b >= 4, g_c ~ w^b near w = 0; quad bisects
-                # towards that singularity, and for |w| < ~1e-8 floating-point
-                # cancellation in 1 - kernc^(w) makes g_c exactly 0, so the
-                # integrand is +inf and the whole integral inf (MATLAB's
-                # integral() does not probe that close). Such a node gets the
-                # value 0: its weight is negligible (< ~1e-8), and the result
-                # matches the exact KL rate to ~1e-7 (see tests).
+                # CHANGED[4]: for b >= 4, g_c ~ w^b near w = 0; quad bisects towards that singularity, and for |w| < ~1e-8 floating-point cancellation in 1 - kernc^(w) makes g_c exactly 0, so the integrand and the whole integral become +inf (MATLAB's integral() does not probe that close). Such a node gets the value 0: its weight is negligible (< ~1e-8), and the result matches the exact KL rate to ~1e-7 (see tests).
                 return 0.0
-            return 1 / (4 * np.pi) * (math.log(s2 * gw / gcw) + gcw / (s2 * gw) - 1)
-        return 1 / (4 * np.pi) * (np.log(s2 * gw / gcw) + gcw / (s2 * gw) - 1)
+            return (
+                1
+                / (4 * np.pi)
+                * (
+                    math.log(sigma_ratio_sq * gw / gcw)
+                    + gcw / (sigma_ratio_sq * gw)
+                    - 1
+                )
+            )
+        return (
+            1
+            / (4 * np.pi)
+            * (np.log(sigma_ratio_sq * gw / gcw) + gcw / (sigma_ratio_sq * gw) - 1)
+        )
 
     if int_method == "trapz":
-        xx = np.linspace(-np.pi, np.pi, 1000)  # even count: w = 0 not a node
-        klr = np.trapezoid(fun2(xx), xx)
-    elif int_method == "integral":
-        # CHANGED[1]: points=[0.0] splits the interval at w = 0. On M_b,
-        # g_c(0) = |1 - sum(kernc)|^2 = 0, an integrable log singularity of
-        # the integrand. QUADPACK's first 21-point rule on [-pi, pi] would
-        # evaluate exactly w = 0 (-> inf/nan), whereas MATLAB's integral()
-        # never places a node there. The value of the integral is unchanged.
-        klr, _ = quad(fun2, -np.pi, np.pi, points=[0.0], **QUAD_OPTS)
-    else:
-        warnings.warn(
-            "ERROR (get_klr_b): specific integration method\n"
-            'Valid options are "trapz" and "integral"'
-        )
-        # FLAG[1]: like the MATLAB original, `klr` is undefined on this path,
-        # so the return below raises (UnboundLocalError; MATLAB: error).
-
-    return klr
+        omega = np.linspace(
+            -np.pi, np.pi, 1000
+        )  # even count: w = 0 is not a grid point
+        return np.trapezoid(integrand(omega), omega)
+    if int_method == "integral":
+        # CHANGED[1]: points=[0.0] splits the interval at w = 0. On M_b, g_c(0) = |1 - sum(kernc)|^2 = 0: an integrable log singularity. QUADPACK's first 21-point rule on [-pi, pi] would evaluate exactly w = 0 (-> inf), MATLAB's integral() never places a node there. The value of the integral is unchanged.
+        klr, _ = quad(integrand, -np.pi, np.pi, points=[0.0], **QUAD_OPTS)
+        return klr
+    # The original only prints this message and then fails on the undefined result.
+    raise ValueError(
+        'ERROR (get_klr_b): specific integration method. Valid options are "trapz" and "integral"'
+    )

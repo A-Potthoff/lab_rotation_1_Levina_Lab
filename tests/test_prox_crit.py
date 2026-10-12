@@ -30,7 +30,7 @@ from src.analysis.prox_crit import (
     explosive,
     get_kernw,
     get_klr_b,
-    get_sigmac,
+    get_sigma_ratio,
     get_spike_counts,
     matlab_colon,
     minimize_klr_b,
@@ -38,8 +38,8 @@ from src.analysis.prox_crit import (
     run_ar,
     yw_ar,
 )
-from src.analysis.prox_crit.kl_rate import _inv_spectrum
-from src.analysis.prox_crit.manifold import _ar_roots
+from src.analysis.prox_crit.kl_rate import inv_spectrum
+from src.analysis.prox_crit.manifold import ar_roots
 from src.config.paths import YMV15_MAT
 
 FIX = Path(__file__).parent / "fixtures"
@@ -137,14 +137,14 @@ def test_db_single_point_manifold_matches_matlab(ref):
 
 
 def test_db_higher_b_python_reaches_lower_minimum(ref):
-    """b >= 4: the objective is the same, but fmincon stops early (FLAG[15]).
+    """b >= 4: the objective is the same, but fmincon stops early (FLAG[9]).
 
     (a) Python's KL rate evaluated at MATLAB's kernc reproduces MATLAB's db
         (same objective function). rtol 2e-5: at b = 6 both quadratures
         (scipy, MATLAB) deviate up to ~1e-5 from a 25-digit mpmath value.
     (b) Python's db is never above MATLAB's.
     (c) Python's minimum is confirmed by an independent optimizer
-        (Nelder-Mead). rtol 2e-5: FLAG[16], finite-difference gradients of
+        (Nelder-Mead). rtol 2e-5: FLAG[10], finite-difference gradients of
         the ~1e-7-accurate objective let SLSQP stop up to ~1e-5 above the
         minimum at b >= 4 (MATLAB's fmincon uses the same step size).
     """
@@ -224,7 +224,7 @@ def _autocov(kern, n_lags):
 
 @pytest.mark.parametrize("b", [2, 4, 6])
 def test_beta_lift_constraints_and_roots(b):
-    rng = np.random.default_rng(b)
+    rng = np.random.default_rng(seed=b)
     red = rng.normal(scale=0.3, size=5)
     phic = beta_lift(red, b)
     n, lags = len(phic), np.arange(1, len(phic) + 1)
@@ -241,7 +241,7 @@ def test_beta_lift_constraints_and_roots(b):
 
 @pytest.mark.parametrize("b", [2, 4, 6])
 def test_calc_dbv1_is_orthogonal_projection(b):
-    rng = np.random.default_rng(10 + b)
+    rng = np.random.default_rng(seed=10 + b)
     kern = rng.normal(scale=0.3, size=7)
     dbv1, kernc = calc_dbv1(kern, b)
     lags = np.arange(1, 8)
@@ -261,7 +261,7 @@ def test_calc_dbv1_is_orthogonal_projection(b):
 
 
 def test_get_kernw_and_spectrum():
-    rng = np.random.default_rng(0)
+    rng = np.random.default_rng(seed=0)
     kern = rng.normal(size=6)
     w = np.linspace(-np.pi, np.pi, 37)
     direct = sum(kern[t - 1] * np.exp(-1j * w * t) for t in range(1, 7))  # MATLAB loop
@@ -275,10 +275,10 @@ def test_get_kernw_and_spectrum():
     )
     # AR(1) analytic inverse spectrum: |1 - a e^{-iw}|^2 = 1 - 2 a cos w + a^2
     a = 0.7
-    g = _inv_spectrum([a])
+    g = inv_spectrum([a])
     np.testing.assert_allclose(g(w), 1 - 2 * a * np.cos(w) + a**2, rtol=1e-14)
     # scalar fast path (used by quad) == vectorized path
-    gk = _inv_spectrum(kern)
+    gk = inv_spectrum(kern)
     np.testing.assert_allclose([gk(float(v)) for v in w], gk(w), rtol=1e-13)
 
 
@@ -291,7 +291,7 @@ def test_kl_rate_equals_time_domain_formula(b, rtol):
         sigma_c^2 = e' Gamma_P e
         klr       = 1/2 [log sigma_c^2 + e' Gamma_P e / sigma_c^2 - 1]
                   = 1/2 log(e' Gamma_P e)
-    This also confirms FLAG[2] (sigma_c is relative to sigma = 1). The b = 4
+    This also confirms that get_sigma_ratio returns sigma_c relative to sigma = 1. The b = 4
     case also exercises CHANGED[4] (g_c underflow next to w = 0); its rtol
     1e-6 is the integral's RelTol (observed 1.4e-7), b = 2 is near exact.
     (Valid only for a non-explosive kernc, since it uses int log g_c = 0.)
@@ -304,7 +304,7 @@ def test_kl_rate_equals_time_domain_formula(b, rtol):
     )
     e = np.r_[1.0, -kc]
     v = e @ Gamma @ e
-    np.testing.assert_allclose(get_sigmac(kern, kc) ** 2, v, rtol=1e-9)
+    np.testing.assert_allclose(get_sigma_ratio(kern, kc) ** 2, v, rtol=1e-9)
     klr = get_klr_b(kern, beta_project(kc, b), b, "integral")
     np.testing.assert_allclose(klr, 0.5 * np.log(v), rtol=rtol)
 
@@ -337,7 +337,7 @@ def test_quadrature_accuracy():
 
 
 def test_mle_ar_against_literal_loop_and_hessian():
-    rng = np.random.default_rng(1)
+    rng = np.random.default_rng(seed=1)
     segs = [run_ar([0.5, -0.2, 0.1], 1, n, rng=rng) for n in (400, 250, 2)]
     order = 3
     kern, sigma, H = mle_ar(segs, order)
@@ -374,32 +374,32 @@ def test_mle_ar_against_literal_loop_and_hessian():
 
 
 def test_yw_ar_against_literal_loop():
-    rng = np.random.default_rng(2)
+    rng = np.random.default_rng(seed=2)
     x = [run_ar([0.6, 0.1], 1, n, rng=rng) for n in (500, 300, 3)]
     order = 4
     kern, sigma = yw_ar(x, order)
     # literal MATLAB loops
     gamma = np.zeros(order)
     for lag in range(1, order + 1):
-        cntr = 0
+        counter = 0
         for s in x:
             for k in range(1, len(s) - lag + 1):
                 gamma[lag - 1] += s[k - 1] * s[k + lag - 1]
-                cntr += 1
-        gamma[lag - 1] /= cntr
+                counter += 1
+        gamma[lag - 1] /= counter
     Gamma = np.ones((order, order))
     for i in range(1, order + 1):
         for j in range(i + 1, order + 1):
             Gamma[i - 1, j - 1] = Gamma[j - 1, i - 1] = gamma[abs(i - j) - 1]
     np.testing.assert_allclose(Gamma @ kern, gamma, rtol=1e-12, atol=1e-15)
     np.testing.assert_allclose(sigma, np.sqrt(1 - gamma @ kern), rtol=1e-12)
-    with pytest.raises(TypeError):
-        yw_ar(np.ones(10), 2)  # FLAG[5c]: no wrapping of a single array
+    # a single array is a single segment (as for mle_ar)
+    np.testing.assert_array_equal(yw_ar(x[0], order)[0], yw_ar([x[0]], order)[0])
 
 
 def test_run_ar_matches_matlab_recursion():
     kern = np.array([0.8, 0.2, -0.1])
-    noise = np.random.default_rng(3).standard_normal(500)
+    noise = np.random.default_rng(seed=3).standard_normal(500)
     x = np.zeros(500)
     for t in range(1, 501):  # MATLAB: hist = fliplr(x(max(1,t-n):(t-1)))
         hist = x[max(1, t - 3) - 1 : t - 1][::-1]
@@ -413,10 +413,10 @@ def test_explosive_threshold():
     assert not explosive(_ar_kernel_from_roots([1.5, 2.0]))
     assert explosive(_ar_kernel_from_roots([0.5, 2.0]))
     assert explosive(_ar_kernel_from_roots([0.98, 2.0]))
-    assert not explosive(_ar_kernel_from_roots([0.995, 2.0]))  # FLAG[4] tolerance
+    assert not explosive(_ar_kernel_from_roots([0.995, 2.0]))  # FLAG[2] tolerance
     assert not explosive([0.0, 0.0])  # no roots: MATLAB `if []` is false
     np.testing.assert_allclose(
-        sorted(abs(_ar_roots(_ar_kernel_from_roots([1.5, -3.0])))), [1.5, 3.0]
+        sorted(abs(ar_roots(_ar_kernel_from_roots([1.5, -3.0])))), [1.5, 3.0]
     )
 
 
@@ -441,7 +441,7 @@ def test_spike_count_bins_are_half_open():
 # --------------------------------------------------------------------------- #
 @pytest.fixture(scope="module")
 def ar3():
-    return run_ar([0.8, 0.2, -0.1], 1, 5000, rng=np.random.default_rng(4))
+    return run_ar([0.8, 0.2, -0.1], 1, 5000, rng=np.random.default_rng(seed=4))
 
 
 def test_interface_and_error_paths(ar3):
@@ -461,7 +461,7 @@ def test_interface_and_error_paths(ar3):
         yw = calc_db(ar3, 3, 1.0, 2, with_err_bars=True)
     assert yw.exit_status == 1 and np.isnan(yw.sddb) and yw.db == db
     with pytest.raises(ValueError):
-        calc_db(ar3, 3, 1.0, 3)  # FLAG[10]: odd b
+        calc_db(ar3, 3, 1.0, 3)  # odd b is rejected
 
 
 def test_minimize_klr_b_closest_model(ar3):
@@ -469,7 +469,9 @@ def test_minimize_klr_b_closest_model(ar3):
     db, cm, ex = minimize_klr_b(kern, 2)
     assert ex == 0
     np.testing.assert_allclose(cm["kernc"].sum(), 1, atol=1e-12)
-    np.testing.assert_allclose(cm["sigmac"], get_sigmac(kern, cm["kernc"]), rtol=1e-14)
+    np.testing.assert_allclose(
+        cm["sigma_ratio"], get_sigma_ratio(kern, cm["kernc"]), rtol=1e-14
+    )
     assert db <= get_klr_b(kern, beta_project(calc_dbv1(kern, 2)[1], 2), 2, "integral")
 
 

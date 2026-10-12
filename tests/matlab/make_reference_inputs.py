@@ -15,7 +15,7 @@ import numpy as np
 from scipy.io import savemat
 from scipy.signal import lfilter
 
-rng = np.random.default_rng(20261011)
+rng = np.random.default_rng(seed=20261011)
 out = Path(__file__).resolve().parents[1] / "fixtures" / "prox_crit_inputs.mat"
 
 
