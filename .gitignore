@@ -18,3 +18,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+
+# Large regenerable exports (> GitHub 100 MB limit); see notebooks/senzai2019_data_overview.ipynb
+data/processed/senzai2019_YMV15_spikes.csv
