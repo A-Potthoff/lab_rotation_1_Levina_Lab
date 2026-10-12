@@ -17,3 +17,6 @@ include = ["src*"]
 [tool.black]
 line-length = 88
 target-version = ['py310']
+
+[tool.pytest.ini_options]
+markers = ["slow: long-running end-to-end tests (deselect with -m 'not slow')"]
