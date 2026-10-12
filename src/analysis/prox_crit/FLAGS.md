@@ -7,7 +7,7 @@ The code carries the same tags as comments (`# FLAG[n]: ...`, `# CHANGED[n]: ...
 
 Evidence for the statements below comes from `tests/test_prox_crit.py`, which compares against MATLAB output and high-precision mpmath values.
 
-## CHANGED (4)
+## CHANGED (5)
 
 | # | Where | What and why |
 |---|---|---|
@@ -15,6 +15,7 @@ Evidence for the statements below comes from `tests/test_prox_crit.py`, which co
 | 2 | `distance.minimize_klr_b` | The constraint `c ≤ 0` (fmincon with `ConstraintTolerance = 0.01`) is passed to SLSQP as `0.01 − c ≥ 0`. SLSQP has no constraint tolerance, and c ≈ 0 holds on M_b by construction (FLAG 3), so a hard `c ≤ 0` can be infeasible from round-off alone. In all tests the constraint is inactive at the optimum. |
 | 3 | `distance.calc_db` | When order < b/2, `minimize_klr_b` deliberately returns NaN, exit = 1 and a warning, but MATLAB then crashes reading the missing field `cm.kernc` ("Unrecognized field name"; confirmed in MATLAB). Python returns the intended NaN with exit_status = 1. |
 | 4 | `kl_rate.get_klr_b` | For b ≥ 4, `quad` bisects toward ω = 0. For \|ω\| ≲ 1e-8, floating-point cancellation makes g_c exactly 0, so the integrand and then the whole integral become inf. Such a node now contributes 0 (its weight is < ~1e-8). The result matches the exact time-domain KL rate to 1.4e-7. MATLAB's `integral` happens not to probe that close to 0. |
+| 5 | `spike_counts.get_spike_counts` | MATLAB's `histc` returns one extra final value counting only spikes exactly at the last edge, so every series ended with a spurious ~0 sample. It is dropped (decided by the user). Effect on the tutorial's d2 values: ≤ 0.07%, far below the error bars. |
 
 Not logic changes, but done for speed or idiom:
 - Vectorized loops.
@@ -24,7 +25,7 @@ Not logic changes, but done for speed or idiom:
 
 All of these are covered by tests against literal loop translations.
 
-## FLAG (16)
+## FLAG (15)
 
 | # | Where | What |
 |---|---|---|
@@ -43,7 +44,6 @@ All of these are covered by tests against literal loop translations.
 | 9 | `beta_lift` | The right-hand-side vector is named `b`, shadowing the manifold order (renamed `rhs` in Python). |
 | 10 | `half_order` | Odd b is never validated in MATLAB, which errors deep inside. Python raises a ValueError up front. |
 | 11 | `demo_crit_db.m` | The comment says "calculate d2" but sets b = 6. It also combines `with_err_bars = true` with YuleWalker, which always hits the "not supported" path (exit_status = 1), and contains a dead `if (0)` block. |
-| 12 | `get_spike_counts` | `histc` semantics: the last count holds only spikes exactly at t2, so every series ends with a spurious ~0 sample. |
 | 13 | `calc_db` error bars | The gradient of db is a forward difference (STEP = 1e-3, O(STEP) bias), and stability is checked only for the +STEP direction. |
 | 14 | `calc_db`, `yw_ar` | `sqrt` of a negative number gives a complex result in MATLAB (sddb when H is not negative definite; sigma when 1 − γ·φ < 0). `np.emath.sqrt` reproduces this. |
 | 15 | `minimize_klr_b` | **For b ≥ 4 the original's fmincon stops early.** In the reference cases its db is 0.07%, 0.03% and **5.7%** (b = 6) above the true minimum, with kernc off by up to 0.2. This was verified by evaluating mpmath at both solutions and by an independent Nelder-Mead run; the likely cause is FLAG 3. SLSQP reaches the minimum, so **for b ≥ 4 this port gives lower db than MATLAB**, and MATLAB error bars at b ≥ 4 differ strongly (88% in one case). For b = 2 the port agrees with MATLAB to ≤ 2e-7 (db) and ≤ 5e-9 (sddb). |

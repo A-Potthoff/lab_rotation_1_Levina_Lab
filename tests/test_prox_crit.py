@@ -175,7 +175,7 @@ def test_order_below_b_half(ref):
 
 
 def test_spike_counts_match_matlab_histc(ref):
-    """Bin edges (MATLAB colon) and histc counts: bit-identical."""
+    """Bin edges (MATLAB colon) and histc counts: bit-identical (minus histc's extra last value, CHANGED[5])."""
     out = ref["out"]
     d = sio.loadmat(YMV15_MAT, squeeze_me=True, variable_names=["st", "WAKE"])
     st = d["st"]
@@ -189,7 +189,7 @@ def test_spike_counts_match_matlab_histc(ref):
             matlab_colon(t1, 0.04, t2), np.ravel(out["bins_" + name])
         )
         np.testing.assert_array_equal(
-            get_spike_counts(st, t1, t2, 0.04), np.ravel(out["counts_" + name])
+            get_spike_counts(st, t1, t2, 0.04), np.ravel(out["counts_" + name])[:-1]
         )
 
 
@@ -430,10 +430,10 @@ def test_matlab_colon():
     assert len(matlab_colon(1, 1, 0)) == 0
 
 
-def test_histc_semantics():
+def test_spike_count_bins_are_half_open():
     st = np.array([0.0, 0.5, 1.0, 1.99, 2.0, 2.5, 3.0, 3.5])
-    # edges 0,1,2,3 -> [0,1), [1,2), [2,3), ==3
-    np.testing.assert_array_equal(get_spike_counts(st, 0, 3, 1.0), [2, 2, 2, 1])
+    # edges 0,1,2,3 -> bins [0,1), [1,2), [2,3); 3.0 and 3.5 are outside
+    np.testing.assert_array_equal(get_spike_counts(st, 0, 3, 1.0), [2, 2, 2])
 
 
 # --------------------------------------------------------------------------- #
@@ -484,10 +484,22 @@ def test_speed(ar3):
 # --------------------------------------------------------------------------- #
 # 3. End-to-end: values printed in the original tutorial (demo.mlx)
 # --------------------------------------------------------------------------- #
+def _histc_series(st, t1, t2, dt):
+    """MATLAB-style series: our counts plus histc's extra last value #{st == last edge}."""
+    last_edge = matlab_colon(t1, dt, t2)[-1]
+    return np.r_[get_spike_counts(st, t1, t2, dt), np.sum(st == last_edge)]
+
+
 @pytest.mark.slow
-def test_ephys_tutorial_values():
+@pytest.mark.parametrize("matlab_binning", [True, False])
+def test_ephys_tutorial_values(matlab_binning):
+    """d2 +- sddb on the real data vs the values printed in the original tutorial.
+
+    matlab_binning=True: with MATLAB's exact series (incl. histc's extra value) the printed digits are reproduced exactly. matlab_binning=False: our default binning (CHANGED[5]) moves d2 by at most 0.07% (rtol 1e-3; error bars are 1-2% of d2).
+    """
     d = sio.loadmat(YMV15_MAT, squeeze_me=True)
     st, dt = d["st"], 0.04
+    series = _histc_series if matlab_binning else get_spike_counts
     opts = dict(fit_method="MaxLikelihood", with_err_bars=True)
     expected = {  # MATLAB output recorded in demo.mlx (num2str: 5 significant digits)
         "all": ("1.7122", "0.0081069"),
@@ -495,15 +507,18 @@ def test_ephys_tutorial_values():
         "NREM": ("2.5523", "0.0149"),
         "REM": ("1.4795", "0.032053"),
     }
-    r = calc_db(get_spike_counts(st, st.min(), st.max(), dt), 5, dt, 2, **opts)
+    r = calc_db(series(st, st.min(), st.max(), dt), 5, dt, 2, **opts)
     got = {"all": r}
     for lab in ("WAKE", "NREM", "REM"):
-        x = [
-            get_spike_counts(st, a, b, dt)
-            for a, b in np.atleast_2d(d[lab]).astype(float)
-        ]
+        x = [series(st, a, b, dt) for a, b in np.atleast_2d(d[lab]).astype(float)]
         got[lab] = calc_db(x, 5, dt, 2, **opts)
     for k, (db_s, sd_s) in expected.items():
-        assert f"{got[k].db:.5g}" == db_s, k
-        assert f"{np.real(got[k].sddb):.5g}" == sd_s, k
         assert got[k].exit_status == 0
+        if matlab_binning:
+            assert f"{got[k].db:.5g}" == db_s, k
+            assert f"{np.real(got[k].sddb):.5g}" == sd_s, k
+        else:
+            np.testing.assert_allclose(got[k].db, float(db_s), rtol=1e-3, err_msg=k)
+            np.testing.assert_allclose(
+                np.real(got[k].sddb), float(sd_s), rtol=1e-2, err_msg=k
+            )
