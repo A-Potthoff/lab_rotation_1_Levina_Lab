@@ -19,3 +19,5 @@ dependencies:
   - torchaudio
   - cpuonly         # install CPU-only dependencies without CUDA bloat
   - pip
+  - pip:
+      - jupyter-black  # auto-formats notebook cells on execution (%load_ext jupyter_black)
