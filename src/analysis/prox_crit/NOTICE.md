@@ -19,8 +19,8 @@ This package is a **Python translation** of the MATLAB toolkit `prox_crit_toolki
 | `calc_db.m: con`, `beta_project`, `beta_lift`, `explosive` | `manifold.con`, `manifold.beta_project`, `manifold.beta_lift`, `manifold.explosive` |
 | `calc_db.m: QC_plot` | `plotting.qc_plot` |
 | `calc_dbv1.m: calc_dbv1` | `manifold.calc_dbv1` |
-| `yw_ar.m`, `mle_ar.m` | `ar_fit.yw_ar`, `ar_fit.mle_ar` |
-| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `demo_aux.run_ar`, `demo_aux.get_spike_counts` (plus `demo_aux.matlab_colon`) |
+| `yw_ar.m`, `mle_ar.m` | `ar.yw_ar`, `ar.mle_ar` |
+| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `ar.run_ar`, `spike_counts.get_spike_counts` (plus `spike_counts.matlab_colon`) |
 | `demo.mlx` | `notebooks/prox_crit_demo.ipynb` |
 | `demo_crit_db.m` | `notebooks/prox_crit_demo_crit_db.ipynb` |
 | `dbopt.with_QC` | `with_qc` |

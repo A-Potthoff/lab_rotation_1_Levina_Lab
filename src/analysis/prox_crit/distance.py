@@ -28,7 +28,7 @@ from typing import NamedTuple
 import numpy as np
 from scipy.optimize import minimize
 
-from .ar_fit import _as_segments, mle_ar, yw_ar
+from .ar import _as_segments, mle_ar, yw_ar
 from .kl_rate import get_klr_b, get_sigmac
 from .manifold import beta_lift, beta_project, calc_dbv1, con, explosive, half_order
 

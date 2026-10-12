@@ -1,6 +1,6 @@
-"""Fitting autoregressive (AR) models to (possibly segmented) time series.
+"""Autoregressive (AR) models: fitting them to (possibly segmented) time series, and simulating them.
 
-NOT OWN WORK. Python translation of ``yw_ar.m`` and ``mle_ar.m`` from
+NOT OWN WORK. Python translation of ``yw_ar.m``, ``mle_ar.m`` and of ``runAR`` (from the demos) from
 prox_crit_toolkit, J. S. Sooter et al.
 (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09),
 licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude).
@@ -17,6 +17,7 @@ H = Hessian of the log-likelihood.
 """
 
 import numpy as np
+from scipy.signal import lfilter
 
 
 def _as_segments(x):
@@ -148,3 +149,38 @@ def mle_ar(x, order):
     B = X.T @ resid  # MATLAB: B(j) = sum((Y-X*kern).*X(:,j))
     H = T * (2 * np.outer(B, B) / A**2 - (X.T @ X) / A)
     return kern, sigma, H
+
+
+def run_ar(kern, sigma, T, rng=None, noise=None):
+    """Simulate T steps of the AR model x_t = sum_k kern_k x_{t-k} + sigma eps_t.
+
+    Starts from x = 0 before t = 1 (no burn-in), exactly as the MATLAB loop:
+    x(t) = fliplr(x(max(1,t-n):(t-1))) * kern(1:...) + sigma*randn.
+    Implemented as the equivalent IIR filter (scipy.signal.lfilter with zero
+    initial state), which is exact and much faster than a Python loop.
+
+    Parameters
+    ----------
+    kern : array
+        History kernel (kern[k-1] = coefficient of lag k).
+    sigma : float
+        Noise standard deviation.
+    T : int
+        Number of time steps.
+    rng : numpy.random.Generator, optional
+        Random generator for the noise (default: np.random.default_rng()).
+        MATLAB's randn stream cannot be reproduced, so simulated series differ
+        from MATLAB's sample by sample (not in distribution).
+    noise : (T,) array, optional
+        Pre-drawn standard-normal noise (overrides rng; used for testing).
+
+    Returns
+    -------
+    x : (T,) array
+    """
+    kern = np.asarray(kern, dtype=float).ravel()
+    if noise is None:
+        rng = np.random.default_rng() if rng is None else rng
+        noise = rng.standard_normal(int(T))
+    # y_t - sum_k kern_k y_{t-k} = sigma * eps_t
+    return lfilter([1.0], np.r_[1.0, -kern], sigma * np.asarray(noise, dtype=float))

@@ -39,11 +39,11 @@ Usage::
         with_err_bars=True)
 """
 
-from .ar_fit import mle_ar, yw_ar
-from .demo_aux import get_spike_counts, matlab_colon, run_ar
+from .ar import mle_ar, run_ar, yw_ar
 from .distance import DbResult, calc_db, minimize_klr_b
 from .kl_rate import get_kernw, get_klr_b, get_sigmac
 from .manifold import beta_lift, beta_project, calc_dbv1, con, explosive
+from .spike_counts import get_spike_counts, matlab_colon
 
 __all__ = [
     "calc_db",
