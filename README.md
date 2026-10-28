@@ -13,10 +13,8 @@ We've set out to work with, and analyse the measure of distance to criticality, 
 - `src/external/`: Externally sourced or copied code; preserve attribution, license terms, and relevant original documentation.
 - `tests/`: Unit and integration tests for reusable code.
 
-### Exploration & experiments
-- `notebooks/`: Exploratory scratch work, prototypes, and analyses not yet organized into a named experiment.
-- `experiments/`: Named research investigations; each can contain notebooks, scripts, configs, and experiment-specific outputs.
-- `scripts/`: Stand-alone runnable scripts, e.g. data conversions and maintenance tasks.
+### Exploration
+- `notebooks/`: Exploratory scratch work, prototypes, and analyses.
 - `legacy/`: Deprecated code snippets retained for reference; Git history handles ordinary code evolution.
 
 ### Data & output

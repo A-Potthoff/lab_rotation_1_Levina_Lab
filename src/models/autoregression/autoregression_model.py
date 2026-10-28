@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt  # unused
 from scipy.special import comb
 
 def get_ar_coeffs(m):

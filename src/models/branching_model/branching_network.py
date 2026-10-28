@@ -18,8 +18,8 @@ Conventions
 
 import warnings
 import numpy as np
-import scipy.sparse as sp
-import scipy.sparse.linalg as spla
+# import scipy.sparse as sp  # used only in the (commented-out) Erdos-Renyi code
+# import scipy.sparse.linalg as spla  # used only in the (commented-out) Erdos-Renyi code
 
 
 # --------------------------------------------------------------------------- theory
