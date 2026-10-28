@@ -17,7 +17,7 @@ DATA_PROCESSED = DATA_DIR / "processed"
 DATA_EXTERNAL = DATA_DIR / "external"
 
 RESULTS_OBJECTS = PROJECT_ROOT / "results" / "objects"
-FIGURES_DIR = PROJECT_ROOT / "reports" / "figures"
+FIGURES_DIR = PROJECT_ROOT / "results" / "figures"
 EXTERNAL_CODE_DIR = PROJECT_ROOT / "src" / "external"
 
 # Single-unit ephys from mouse visual cortex (Senzai et al., Neuron 2019),
