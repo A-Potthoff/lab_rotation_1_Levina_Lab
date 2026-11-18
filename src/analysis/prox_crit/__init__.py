@@ -15,7 +15,7 @@ Glossary of abbreviations used throughout:
     kernc        kernel of the closest critical model (phi_c); "reduced" = its first n - b/2 entries
     kernw        Fourier transform of a kernel (w = omega)
     sigma        noise std of the fitted model
-    sigmac       noise std of the closest critical model (relative to sigma)
+    sigma_ratio  noise std of the closest critical model relative to the fitted one, sigma_c / sigma
     klr          KL-divergence rate
     db_euclidean L2 (Euclidean) distance of kern to M_b ("dbv1" in the original); starting point of the KL minimization
     yw / mle     Yule-Walker / maximum-likelihood AR fit
@@ -30,7 +30,7 @@ Usage::
 
 from .ar import as_segments, mle_ar, run_ar, yw_ar
 from .distance import DbResult, calc_db, minimize_klr_b
-from .kl_rate import get_kernw, get_klr_b, get_sigmac, inv_spectrum
+from .kl_rate import get_kernw, get_klr_b, get_sigma_ratio, inv_spectrum
 from .manifold import (
     ar_roots,
     beta_lift,
@@ -59,7 +59,7 @@ __all__ = [
     "stability_constraint",
     "get_kernw",
     "inv_spectrum",
-    "get_sigmac",
+    "get_sigma_ratio",
     "get_klr_b",
     "get_spike_counts",
     "matlab_range",

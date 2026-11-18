@@ -1,6 +1,6 @@
 """Spectral Kullback-Leibler divergence rate between two AR models.
 
-NOT OWN WORK. Python translation of the local functions ``get_kernw``, ``get_sigmac`` and ``get_klr_b`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged; two numerical details of the quadrature differ (no effect on the values), see NOTICE.md.
+NOT OWN WORK. Python translation of the local functions ``get_kernw``, ``get_sigmac`` (here ``get_sigma_ratio``) and ``get_klr_b`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged; two numerical details of the quadrature differ (no effect on the values), see NOTICE.md.
 
 Formulas (for recognition, no derivation), with w = angular frequency in [-pi, pi] (per time step):
 
@@ -59,10 +59,10 @@ def inv_spectrum(kern):
     return g
 
 
-def get_sigmac(kern, kernc):
-    """Noise std sigma_c of the critical model that minimizes the KL rate: sigma_c^2 = 1/(2 pi) int g_c / g dw.
+def get_sigma_ratio(kern, kernc):
+    """Ratio r = sigma_c / sigma of the noise stds (critical / fitted model) that minimizes the KL rate: r^2 = 1/(2 pi) int g_c / g dw.
 
-    Technically the ratio sigma_c / sigma: the formula sets the fitted model's sigma to 1 (the KL rate only depends on the ratio). Absolute noise std of the critical model = sigma * sigmac.
+    Original name ``get_sigmac``: the formula sets the fitted model's sigma to 1. The fitted sigma is not 1 in general (z-scoring normalizes the variance of x, not of the noise), so the value is the ratio; absolute noise std of the critical model = sigma * r.
     """
     g = inv_spectrum(kern)
     gc = inv_spectrum(kernc)
@@ -94,7 +94,7 @@ def get_klr_b(kern, kernc, b, int_method):
         KL divergence rate in nats per time step, with the optimal noise ratio (see module docstring).
     """
     kernc = beta_lift(kernc, b)
-    sigmac_sq = get_sigmac(kern, kernc) ** 2
+    sigma_ratio_sq = get_sigma_ratio(kern, kernc) ** 2
     g = inv_spectrum(kern)
     gc = inv_spectrum(kernc)
 
@@ -107,12 +107,16 @@ def get_klr_b(kern, kernc, b, int_method):
             return (
                 1
                 / (4 * np.pi)
-                * (math.log(sigmac_sq * gw / gcw) + gcw / (sigmac_sq * gw) - 1)
+                * (
+                    math.log(sigma_ratio_sq * gw / gcw)
+                    + gcw / (sigma_ratio_sq * gw)
+                    - 1
+                )
             )
         return (
             1
             / (4 * np.pi)
-            * (np.log(sigmac_sq * gw / gcw) + gcw / (sigmac_sq * gw) - 1)
+            * (np.log(sigma_ratio_sq * gw / gcw) + gcw / (sigma_ratio_sq * gw) - 1)
         )
 
     if int_method == "trapz":

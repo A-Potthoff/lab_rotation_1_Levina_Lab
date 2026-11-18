@@ -17,7 +17,7 @@ Evidence for the statements below comes from `tests/test_prox_crit.py`, which co
 |---|---|
 | `calc_db.m: calc_db(x, order, deltaT, b, dbopt)` | `distance.calc_db(x, order, delta_t, b, *, fit_method, metric, optimizer, with_err_bars, with_qc, with_parallel)` returns `DbResult` |
 | `calc_db.m: minimize_klr_b` | `distance.minimize_klr_b` |
-| `calc_db.m: get_klr_b`, `get_kernw`, `get_sigmac` | `kl_rate.get_klr_b`, `kl_rate.get_kernw`, `kl_rate.get_sigmac` |
+| `calc_db.m: get_klr_b`, `get_kernw`, `get_sigmac` | `kl_rate.get_klr_b`, `kl_rate.get_kernw`, `kl_rate.get_sigma_ratio` |
 | `calc_db.m: con`, `beta_project`, `beta_lift`, `explosive` | `manifold.stability_constraint`, `manifold.beta_project`, `manifold.beta_lift`, `manifold.explosive` |
 | `calc_db.m: QC_plot` | `plotting.qc_plot` |
 | `calc_dbv1.m: calc_dbv1` | `manifold.calc_db_euclidean` |
@@ -77,7 +77,7 @@ Minor, of order (AR order)/(segment length), so negligible for typical series (�
 | warning "drifted off of critical manifold" (the lifted kernel is always on M_b) | "closest critical model is explosive (optimizer left the non-explosive part of M_b)" |
 | `demo_crit_db.m`: comment says "d2" with b = 6; requests error bars with YuleWalker (always fails); dead `if (0)` block | notebook says d6, no error bars requested, dead block omitted |
 
-`get_sigmac` keeps its original name: the formula sets the fitted model's σ to 1, so the value is technically the ratio σ_c/σ (the KL rate only depends on that ratio).
+`get_sigmac` → `get_sigma_ratio` (and the field `closest_model['sigmac']` → `'sigma_ratio'`): the formula sets the fitted model's σ to 1, but the fitted σ is not 1 (z-scoring normalizes the variance of x, not of the noise), so the value is the ratio σ_c/σ. The KL rate only depends on that ratio, so db is unaffected.
 
 Not changes, but done for speed or idiom: vectorized loops, a plain-Python Horner evaluation of g(ω) for scalar quad nodes, `lfilter` for the AR simulation, keyword arguments instead of `dbopt`, a NamedTuple output, and `warnings.warn` instead of `disp`. All are covered by tests against literal loop translations.
 
