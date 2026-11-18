@@ -13,7 +13,7 @@ Background (for recognition, no derivation):
   M_b is therefore an affine subspace of dimension n - b/2.
 * Reduced kernel: a point on M_b is parameterized by its first n - b/2 entries; the last b/2 entries follow from the constraints (``beta_lift``). ``beta_project`` goes the other way (it just truncates).
 
-Abbreviations: b / beta = type (order) of criticality, kernc / phic = kernel of a critical model, db_euclidean = plain L2 distance to M_b (``calc_dbv1``, "version 1" of the distance, in the original), con = constraint function of the optimizer.
+Abbreviations: b / beta = type (order) of criticality, kernc / phic = kernel of a critical model. ``calc_db_euclidean`` and ``stability_constraint`` are ``calc_dbv1`` ("version 1" of the distance) and ``con`` in the original.
 """
 
 import warnings
@@ -110,7 +110,7 @@ def beta_lift(phic_reduc, beta):  # ex: phic_reduc = (2.5), beta = 4
     return np.concatenate([phic_reduc, np.linalg.solve(A, rhs)])
 
 
-def con(kernc, b):
+def stability_constraint(kernc, b):
     """Constraint of the optimization (fmincon convention: feasible if c <= 0).
 
     Checks whether the roots of the lifted kernel's polynomial lie outside the unit circle (stationary); a root inside makes c positive (infeasible).

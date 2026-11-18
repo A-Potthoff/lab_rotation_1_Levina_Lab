@@ -23,7 +23,7 @@ Evidence for the statements below comes from `tests/test_prox_crit.py`, which co
 
 | # | Where | What |
 |---|---|---|
-| 1 | `manifold.con` | On M_b, z = 1 is always a root, so c = 1 − min\|root\| ≈ 0 permanently. The constraint is degenerate and non-smooth, and its finite-difference gradient is root-finding noise for b ≥ 4 (~1e-8 at b = 4, ~1e-5 at b = 6). |
+| 1 | `manifold.stability_constraint` | On M_b, z = 1 is always a root, so c = 1 − min\|root\| ≈ 0 permanently. The constraint is degenerate and non-smooth, and its finite-difference gradient is root-finding noise for b ≥ 4 (~1e-8 at b = 4, ~1e-5 at b = 6). |
 | 2 | `manifold.explosive` | Tolerance 1e-2: a root with \|z\| in [0.99, 1) counts as **not** explosive. |
 | 3 | `ar.yw_ar` | The autocovariance is normalized by N − lag, not N, so the Toeplitz matrix Γ is not guaranteed positive definite. |
 | 4 | `ar.yw_ar` | Γ's diagonal is fixed to 1, while `calc_db` z-scores with the N − 1 std, so the data's actual lag-0 moment is (N − 1)/N. |

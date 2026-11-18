@@ -20,7 +20,6 @@ Glossary of abbreviations used throughout:
     db_euclidean L2 (Euclidean) distance of kern to M_b ("dbv1" in the original); starting point of the KL minimization
     yw / mle     Yule-Walker / maximum-likelihood AR fit
     H            Hessian of the log-likelihood (for error bars)
-    con          constraint function of the optimizer
     QC           quality control
 
 Usage::
@@ -37,9 +36,9 @@ from .manifold import (
     beta_lift,
     beta_project,
     calc_db_euclidean,
-    con,
     explosive,
     half_order,
+    stability_constraint,
 )
 from .spike_counts import get_spike_counts, matlab_range
 
@@ -56,8 +55,8 @@ __all__ = [
     "calc_db_euclidean",
     "beta_lift",
     "beta_project",
-    "con",
     "explosive",
+    "stability_constraint",
     "get_kernw",
     "inv_spectrum",
     "get_sigma_ratio",

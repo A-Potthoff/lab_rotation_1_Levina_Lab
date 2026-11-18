@@ -25,7 +25,7 @@ from .manifold import (
     beta_lift,
     beta_project,
     calc_db_euclidean,
-    con,
+    stability_constraint,
     explosive,
     half_order,
 )
@@ -212,7 +212,7 @@ def minimize_klr_b(kern, b):
         constraint = {
             "type": "ineq",
             "fun": lambda kernc_reduced: CONSTRAINT_TOLERANCE
-            - con(kernc_reduced, b)[0],
+            - stability_constraint(kernc_reduced, b)[0],
         }
         result = minimize(
             objective,
