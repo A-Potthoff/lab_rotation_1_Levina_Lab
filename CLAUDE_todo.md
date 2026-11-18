@@ -1,14 +1,14 @@
 # To-do
 
-- I discussed with a chatbot. My question: "I have the issue that the analysis functions require fitting and simulation of ar models. therefore in anal I have defined run_ar, mle_ar, and yw_ar. but I also want to have an ar model script. to just simulate and run ar models irrespectively. I don't want to write redundant code or copy. but the models should also not be empty. how do I deal with this? do I just write an innit in models/AR, where I import from analysis". its response: "Simulation & Dynamics live in src/models/.\n Fitting & Estimation live in src/analysis/, and they import from src/models. \n This keeps src/models fully substantive, prevents code duplication, and maintains a clean, acyclic dependency tree."
-  - implement this. I don't know if "run_ar" is even called in the ar pipeline. is it? find out and ask me before acting.
-  - (Claude, 2026-11-18) run_ar is NOT called in the calc_db pipeline; only the demo notebooks and tests use it. Waiting for your go before moving it to src/models.
-
-- cleanup the models part with branching model and autoregression.
-  - (Claude, 2026-11-18) nothing to fix without asking (inits consistent with src/analysis and src/utils, no typos found). Naming questions are in the chat; waiting for your answer.
-
 
 # Done
+
+- I discussed with a chatbot. My question: "I have the issue that the analysis functions require fitting and simulation of ar models. therefore in anal I have defined run_ar, mle_ar, and yw_ar. but I also want to have an ar model script. to just simulate and run ar models irrespectively. I don't want to write redundant code or copy. but the models should also not be empty. how do I deal with this? do I just write an innit in models/AR, where I import from analysis". its response: "Simulation & Dynamics live in src/models/.\n Fitting & Estimation live in src/analysis/, and they import from src/models. \n This keeps src/models fully substantive, prevents code duplication, and maintains a clean, acyclic dependency tree."
+  - implement this. I don't know if "run_ar" is even called in the ar pipeline. is it? find out and ask me before acting.
+  - (Claude, 2026-11-18) run_ar is NOT called in the calc_db pipeline; only the demo notebooks and tests use it. Moved to src/models/autoregression/autoregression_model.py; prox_crit re-exports it.
+
+- cleanup the models part with branching model and autoregression.
+  - (Claude, 2026-11-18) inits consistent, no typos. Renamed in autoregression_model.py: noise_scale -> sigma, p -> order, e -> epsilon (phi kept).
 
 - Quite a lot of to-dos accumulated here. make sure to commit them in sensible chunks to git.
 
@@ -23,6 +23,7 @@
 - I don't quite understand why the specific optimizer was chosen. why not keep it as an argument and pass it down? maybe other optimizers are better suited for this problem? If not, pls tell me lol. otherwise choose the best optimizer here. do not overengineer it, though! keep in mind: only necessary and sparse changes!
 
 - I don't understand why we call it sigma_ratio and return it, when the fitted sigma is 1 by definition. then the sigma_ratio is just sigma. pls name it back to original in that case. keep a comment in the function saying that technically, this is sigma_ratio but since we normalize it is sigma or something. but no need to be sooo dramatically precise. except it really makes a difference - then I take it back.
+  - (Claude, 2026-11-18) it does matter: closest_model returns it and the fitted sigma is not 1, so it is get_sigma_ratio / 'sigma_ratio' again.
 
 - rename the calc_dbv1 to something more expressive (like calc_cb_euclidian or something)
 
