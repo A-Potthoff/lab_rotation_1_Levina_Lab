@@ -1,0 +1,41 @@
+# To-do
+
+- I discussed with a chatbot. My question: "I have the issue that the analysis functions require fitting and simulation of ar models. therefore in anal I have defined run_ar, mle_ar, and yw_ar. but I also want to have an ar model script. to just simulate and run ar models irrespectively. I don't want to write redundant code or copy. but the models should also not be empty. how do I deal with this? do I just write an innit in models/AR, where I import from analysis". its response: "Simulation & Dynamics live in src/models/.\n Fitting & Estimation live in src/analysis/, and they import from src/models. \n This keeps src/models fully substantive, prevents code duplication, and maintains a clean, acyclic dependency tree."
+  - implement this. I don't know if "run_ar" is even called in the ar pipeline. is it? find out and ask me before acting.
+  - (Claude, 2026-11-18) run_ar is NOT called in the calc_db pipeline; only the demo notebooks and tests use it. Waiting for your go before moving it to src/models.
+
+- cleanup the models part with branching model and autoregression.
+  - (Claude, 2026-11-18) nothing to fix without asking (inits consistent with src/analysis and src/utils, no typos found). Naming questions are in the chat; waiting for your answer.
+
+
+# Done
+
+- Quite a lot of to-dos accumulated here. make sure to commit them in sensible chunks to git.
+
+- Before you work, check the currently uncommited changes and plan how you want to incorporate that into your plan. merge them with other commits if possible, such that the tree stays clean. For the analysis: the scripts are likely all gonna be rewritten, because they are AI and I don't understand them and I can't take responsibility for this. keep this in mind when writing commit messages (don't suggest these are final analyses or something).
+
+- rename matlab_colon to matlab_range or something. I find the name confusing.
+
+- FLAG[2] is a detail, nothing to important. keep it explicit in the docstring of the function, but remove it as a flag, drawing in too much attention
+
+- the proxy_crit model already includes euclidian distance. give calc_db an optional argument to return that distance, instead of the KL divergence rate.
+
+- I don't quite understand why the specific optimizer was chosen. why not keep it as an argument and pass it down? maybe other optimizers are better suited for this problem? If not, pls tell me lol. otherwise choose the best optimizer here. do not overengineer it, though! keep in mind: only necessary and sparse changes!
+
+- I don't understand why we call it sigma_ratio and return it, when the fitted sigma is 1 by definition. then the sigma_ratio is just sigma. pls name it back to original in that case. keep a comment in the function saying that technically, this is sigma_ratio but since we normalize it is sigma or something. but no need to be sooo dramatically precise. except it really makes a difference - then I take it back.
+
+- rename the calc_dbv1 to something more expressive (like calc_cb_euclidian or something)
+
+- rename con to something more expressive (but you can keep it very similar)
+
+- make the constraints on the fmincon noise thingy (CHANGED[2], FLAG[1]) less in-your-face. keep a comment explaining what is done at the relevant points.
+
+- all CHANGED are not worth the attention (I believe). I don't really understand CHANGED 1, 4, and 5, if they are as minor as I understand them to be, make them less in your face as well.
+same goes for some flags, for example flag 2. the function has been specifically designed to have the tolerance, so flagging it kinda makes it seem like a flat-right error. remove it. flag 1 I think goes along the very same lines. For flag 6, try to fix the issue, or if the line is uninformative anyways because of the bias, remove it.
+In general, the flags are too technical and dense that I can judge them all. but I think you now have an idea of what I deem relevant. the optimizer stopping early for example is a genuine flag I accept. In general, I want you to rewrite the flags, changed and stuff to only really suggest a real issue if they are one. otherwise, I think it is fair to merge NOTICE.md and FLAGS.md. keep everything as well-documented as it is, but if the code works, it works, if you improved it, even better. only keep explicit real issues. I trust that you can judge well, what is and what not, better then I do. 
+
+- one AI chatbot critizised:
+"""
+Final check: the fence is not enforced perfectly, so SLSQP can end slightly outside it. The final explosive check applies the same 0.99 rule, and a failure gives NaN. The warning text is misleading. The lifted kernel is always critical by construction; what actually happened is that it left the non-explosive piece of $M_b$.
+"""
+pls fix that.
