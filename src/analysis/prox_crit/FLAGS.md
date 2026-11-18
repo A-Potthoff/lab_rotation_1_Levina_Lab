@@ -38,7 +38,6 @@ Evidence for the statements below comes from `tests/test_prox_crit.py`, which co
 
 | Original | Python |
 |---|---|
-| `get_sigmac` / `sigmac`: suggests the critical model's absolute noise std, but it is the ratio σ_c/σ (the fitted σ is set to 1 in the formula) | `get_sigma_ratio` / `"sigma_ratio"` |
 | `cntr`, `b` (as right-hand side in `beta_lift`, clashing with the manifold order), `temp`, `cme`, ... | descriptive names (`counter`, `rhs`, ...) |
 | `get_klr_b` with an unknown `int_method` prints an error and then fails on an undefined result | raises `ValueError` with the same message |
 | `yw_ar` errors on a single array (needs a cell array), unlike `mle_ar` | both accept a single array or a list of segments |

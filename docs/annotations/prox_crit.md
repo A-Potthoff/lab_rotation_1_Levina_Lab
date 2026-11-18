@@ -33,7 +33,7 @@ $$
 \mathrm{klr}=\frac{1}{4\pi}\int_{-\pi}^{\pi}\Big[\log\frac{\sigma_c^2 g}{g_c}+\frac{g_c}{\sigma_c^2 g}-1\Big]d\omega
 $$
 
-The fitted model's $\sigma$ is set to 1, so $\sigma_c$ is really the ratio $\sigma_c/\sigma$ (hence `get_sigma_ratio`). The integrand has an integrable log singularity at $\omega=0$, because $g_c(0)=0$ on $M_b$ (CHANGED 1 and 4).
+The fitted model's $\sigma$ is set to 1, so $\sigma_c$ is really the ratio $\sigma_c/\sigma$ (`get_sigmac` returns this ratio). The integrand has an integrable log singularity at $\omega=0$, because $g_c(0)=0$ on $M_b$ (CHANGED 1 and 4).
 
 The time-domain identity used in the tests: with $e=(1,-\phi_c)$ and $\Gamma$ the autocovariance matrix of the fitted model,
 

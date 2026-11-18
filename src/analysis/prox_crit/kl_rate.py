@@ -59,10 +59,10 @@ def inv_spectrum(kern):
     return g
 
 
-def get_sigma_ratio(kern, kernc):
-    """Noise ratio r = sigma_c / sigma of the critical model that minimizes the KL rate: r^2 = 1/(2 pi) int g_c / g dw.
+def get_sigmac(kern, kernc):
+    """Noise std sigma_c of the critical model that minimizes the KL rate: sigma_c^2 = 1/(2 pi) int g_c / g dw.
 
-    Named ``get_sigmac`` in the original, which suggests the absolute noise std of the critical model. The formula sets the fitted model's sigma to 1, so the value is the ratio sigma_c / sigma (the KL rate depends only on this ratio). The absolute value is sigma * r.
+    Technically the ratio sigma_c / sigma: the formula sets the fitted model's sigma to 1 (the KL rate only depends on the ratio). Absolute noise std of the critical model = sigma * sigmac.
     """
     g = inv_spectrum(kern)
     gc = inv_spectrum(kernc)
@@ -94,7 +94,7 @@ def get_klr_b(kern, kernc, b, int_method):
         KL divergence rate in nats per time step, with the optimal noise ratio (see module docstring).
     """
     kernc = beta_lift(kernc, b)
-    sigma_ratio_sq = get_sigma_ratio(kern, kernc) ** 2
+    sigmac_sq = get_sigmac(kern, kernc) ** 2
     g = inv_spectrum(kern)
     gc = inv_spectrum(kernc)
 
@@ -107,16 +107,12 @@ def get_klr_b(kern, kernc, b, int_method):
             return (
                 1
                 / (4 * np.pi)
-                * (
-                    math.log(sigma_ratio_sq * gw / gcw)
-                    + gcw / (sigma_ratio_sq * gw)
-                    - 1
-                )
+                * (math.log(sigmac_sq * gw / gcw) + gcw / (sigmac_sq * gw) - 1)
             )
         return (
             1
             / (4 * np.pi)
-            * (np.log(sigma_ratio_sq * gw / gcw) + gcw / (sigma_ratio_sq * gw) - 1)
+            * (np.log(sigmac_sq * gw / gcw) + gcw / (sigmac_sq * gw) - 1)
         )
 
     if int_method == "trapz":

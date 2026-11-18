@@ -15,7 +15,7 @@ This package is a **Python translation** of the MATLAB toolkit `prox_crit_toolki
 |---|---|
 | `calc_db.m: calc_db(x, order, deltaT, b, dbopt)` | `distance.calc_db(x, order, delta_t, b, *, fit_method, with_err_bars, with_qc, with_parallel)` returns `DbResult` |
 | `calc_db.m: minimize_klr_b` | `distance.minimize_klr_b` |
-| `calc_db.m: get_klr_b`, `get_kernw`, `get_sigmac` | `kl_rate.get_klr_b`, `kl_rate.get_kernw`, `kl_rate.get_sigma_ratio` |
+| `calc_db.m: get_klr_b`, `get_kernw`, `get_sigmac` | `kl_rate.get_klr_b`, `kl_rate.get_kernw`, `kl_rate.get_sigmac` |
 | `calc_db.m: con`, `beta_project`, `beta_lift`, `explosive` | `manifold.stability_constraint`, `manifold.beta_project`, `manifold.beta_lift`, `manifold.explosive` |
 | `calc_db.m: QC_plot` | `plotting.qc_plot` |
 | `calc_dbv1.m: calc_dbv1` | `manifold.calc_db_euclidean` |

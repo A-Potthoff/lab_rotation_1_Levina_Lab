@@ -30,7 +30,7 @@ from src.analysis.prox_crit import (
     explosive,
     get_kernw,
     get_klr_b,
-    get_sigma_ratio,
+    get_sigmac,
     get_spike_counts,
     matlab_range,
     minimize_klr_b,
@@ -291,7 +291,7 @@ def test_kl_rate_equals_time_domain_formula(b, rtol):
         sigma_c^2 = e' Gamma_P e
         klr       = 1/2 [log sigma_c^2 + e' Gamma_P e / sigma_c^2 - 1]
                   = 1/2 log(e' Gamma_P e)
-    This also confirms that get_sigma_ratio returns sigma_c relative to sigma = 1. The b = 4
+    This also confirms that get_sigmac returns sigma_c relative to sigma = 1. The b = 4
     case also exercises CHANGED[4] (g_c underflow next to w = 0); its rtol
     1e-6 is the integral's RelTol (observed 1.4e-7), b = 2 is near exact.
     (Valid only for a non-explosive kernc, since it uses int log g_c = 0.)
@@ -304,7 +304,7 @@ def test_kl_rate_equals_time_domain_formula(b, rtol):
     )
     e = np.r_[1.0, -kc]
     v = e @ Gamma @ e
-    np.testing.assert_allclose(get_sigma_ratio(kern, kc) ** 2, v, rtol=1e-9)
+    np.testing.assert_allclose(get_sigmac(kern, kc) ** 2, v, rtol=1e-9)
     klr = get_klr_b(kern, beta_project(kc, b), b, "integral")
     np.testing.assert_allclose(klr, 0.5 * np.log(v), rtol=rtol)
 
@@ -469,9 +469,7 @@ def test_minimize_klr_b_closest_model(ar3):
     db, cm, ex = minimize_klr_b(kern, 2)
     assert ex == 0
     np.testing.assert_allclose(cm["kernc"].sum(), 1, atol=1e-12)
-    np.testing.assert_allclose(
-        cm["sigma_ratio"], get_sigma_ratio(kern, cm["kernc"]), rtol=1e-14
-    )
+    np.testing.assert_allclose(cm["sigmac"], get_sigmac(kern, cm["kernc"]), rtol=1e-14)
     assert db <= get_klr_b(
         kern, beta_project(calc_db_euclidean(kern, 2)[1], 2), 2, "integral"
     )

@@ -20,7 +20,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .ar import as_segments, mle_ar, yw_ar
-from .kl_rate import get_klr_b, get_sigma_ratio
+from .kl_rate import get_klr_b, get_sigmac
 from .manifold import (
     beta_lift,
     beta_project,
@@ -180,7 +180,7 @@ def minimize_klr_b(kern, b):
     db : float
         Distance from M_b: the minimal KL rate, in nats per time step.
     closest_model : dict
-        'kernc': full kernel of the closest critical model; 'sigma_ratio': its noise std relative to the fitted model's (see kl_rate.get_sigma_ratio).
+        'kernc': full kernel of the closest critical model; 'sigmac': its noise std, relative to the fitted model's (see kl_rate.get_sigmac).
     exit_flag : int
         0 if successful.
     """
@@ -197,7 +197,7 @@ def minimize_klr_b(kern, b):
         # M_b is a single point here (no free parameters), so there is nothing to optimize.
         db = get_klr_b(kern, [], b, "integral")
         kernc = beta_lift([], b)
-        closest_model["sigma_ratio"] = get_sigma_ratio(kern, kernc)
+        closest_model["sigmac"] = get_sigmac(kern, kernc)
         closest_model["kernc"] = kernc
     else:
 
@@ -227,7 +227,7 @@ def minimize_klr_b(kern, b):
         db = result.fun
 
         closest_model["kernc"] = beta_lift(result.x, b)
-        closest_model["sigma_ratio"] = get_sigma_ratio(kern, closest_model["kernc"])
+        closest_model["sigmac"] = get_sigmac(kern, closest_model["kernc"])
 
         if explosive(closest_model["kernc"]):
             exit_flag = 1
