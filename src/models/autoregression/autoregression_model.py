@@ -43,36 +43,36 @@ def verify_moment_conditions(max_m=3):
               f"{m1:<14.1f} | {m2:<16.1f} | {m3:<14.1f}")
     print("=" * 78 + "\n")
 
-def simulate_ar(phi, n_steps, init_history, noise_scale=1.0, rng=None):
+def simulate_ar(phi, n_steps, init_history, sigma=1.0, rng=None):
     """
-    Simulates x_t = sum_{k=1}^p phi_k x_{t-k} + e_t.
+    Simulates x_t = sum_{k=1}^order phi_k x_{t-k} + epsilon_t, epsilon_t ~ N(0, sigma^2).
     Returns full array of length (len(init_history) + n_steps).
     """
-    p = len(phi)
+    order = len(phi)
     n_init = len(init_history)
-    if n_init < p:
-        raise ValueError(f"Need at least {p} initial values, got {n_init}.")
+    if n_init < order:
+        raise ValueError(f"Need at least {order} initial values, got {n_init}.")
         
     x = np.zeros(n_init + n_steps, dtype=float)
     x[:n_init] = init_history
     
-    if noise_scale > 0.0:
+    if sigma > 0.0:
         if rng is None:
             rng = np.random.default_rng()
-        e = rng.normal(0.0, noise_scale, size=n_init + n_steps)
+        epsilon = rng.normal(0.0, sigma, size=n_init + n_steps)
     else:
-        e = np.zeros(n_init + n_steps)
+        epsilon = np.zeros(n_init + n_steps)
         
     for t in range(n_init, n_init + n_steps):
-        if p > 0:
-            # x[t-p:t][::-1] orders lags as [x_{t-1}, x_{t-2}, ..., x_{t-p}]
-            x[t] = np.dot(phi, x[t - p:t][::-1]) + e[t]
+        if order > 0:
+            # x[t-order:t][::-1] orders lags as [x_{t-1}, x_{t-2}, ..., x_{t-order}]
+            x[t] = np.dot(phi, x[t - order:t][::-1]) + epsilon[t]
         else:
-            x[t] = e[t]
+            x[t] = epsilon[t]
             
     return x
 
-def exact_theoretical_std(m, n_steps, noise_scale=1.0):
+def exact_theoretical_std(m, n_steps, sigma=1.0):
     """
     Computes the exact analytical standard deviation of x_t at each step t >= 0
     using the Green's function h_j = comb(j + m - 1, m - 1):
@@ -80,9 +80,9 @@ def exact_theoretical_std(m, n_steps, noise_scale=1.0):
     """
     j = np.arange(n_steps)
     if m == 0:
-        return np.full(n_steps, noise_scale)
+        return np.full(n_steps, sigma)
     h_j = comb(j + m - 1, m - 1)
-    var_t = (noise_scale ** 2) * np.cumsum(h_j ** 2)
+    var_t = (sigma ** 2) * np.cumsum(h_j ** 2)
     return np.sqrt(var_t)
 
 
