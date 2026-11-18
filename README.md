@@ -27,9 +27,12 @@ We've set out to work with, and analyse the measure of distance to criticality, 
 ### Documentation
 - `docs/annotations/`: Longer derivations, conceptual explanations, implementation notes, and literature references.
 
+## License
+The whole repository is licensed under CC BY-NC 4.0 (see `LICENSE`).
+
 ## Third-party code
 - `src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/`: original MATLAB toolkit by J. S. Sooter et al. ([prox_crit_toolkit](https://github.com/sam-sooter/prox_crit_toolkit)), CC BY-NC 4.0.
-- `src/analysis/prox_crit/`: **Python translation of that toolkit (not own work)**, also CC BY-NC 4.0. See its `NOTICE.md` (license, deviations from the original, known issues). It is tested against the MATLAB original in `tests/test_prox_crit.py`, and the demos are ported in `notebooks/proxy_crit_Sooter/prox_crit_demo*.ipynb`.
+- `src/analysis/prox_crit/`: **Python translation of that toolkit (not own work)**. See its `NOTICE.md` (license, deviations from the original, known issues). It is tested against the MATLAB original in `tests/test_prox_crit.py`, and the demos are ported in `notebooks/proxy_crit_Sooter/prox_crit_demo*.ipynb`.
 
   ```python
   from src.analysis.prox_crit import calc_db

@@ -1,6 +1,6 @@
 """prox_crit: proximity to criticality d_b of a time series (Sooter et al.).
 
-NOT OWN WORK. Python translation of the MATLAB prox_crit_toolkit by J. S. Sooter et al., "Defining and measuring proximity to criticality", bioRxiv (2025), doi:10.1101/2025.08.03.668332. Source: https://github.com/sam-sooter/prox_crit_toolkit (fetched 2026-10-09); the original is kept in src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/. License: CC BY-NC 4.0 (NOT the MIT license of the surrounding repository). Translated by Andre Potthoff (with Claude); see NOTICE.md (file/function mapping, deviations from the original, known issues).
+NOT OWN WORK. Python translation of the MATLAB prox_crit_toolkit by J. S. Sooter et al., "Defining and measuring proximity to criticality", bioRxiv (2025), doi:10.1101/2025.08.03.668332. Source: https://github.com/sam-sooter/prox_crit_toolkit (fetched 2026-10-09); the original is kept in src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/. License: CC BY-NC 4.0, like the rest of the repository. Translated by Andre Potthoff (with Claude); see NOTICE.md (file/function mapping, deviations from the original, known issues).
 
 Idea: fit an AR(n) model to the data; d_b is the smallest KL-divergence rate from that model to any AR(n) model that is critical of type b (characteristic polynomial with a b/2-fold root at z = 1). Units: bits/s. "How distinguishable is this system from a system at criticality?"
 

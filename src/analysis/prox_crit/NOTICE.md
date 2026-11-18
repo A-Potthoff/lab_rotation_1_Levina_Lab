@@ -5,7 +5,7 @@ This package is a **Python translation** of the MATLAB toolkit `prox_crit_toolki
 - **Authors of the original:** J. S. Sooter et al. Contact: Sam Sooter (jssooter@gmail.com), Woodrow Shew (shew@uark.edu).
 - **Publication:** Sooter et al., *Defining and measuring proximity to criticality*, bioRxiv (2025), doi:[10.1101/2025.08.03.668332](https://www.biorxiv.org/content/10.1101/2025.08.03.668332v2).
 - **Source:** https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09. The unmodified original is kept in `src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/`.
-- **License:** [Creative Commons Attribution-NonCommercial 4.0](https://creativecommons.org/licenses/by-nc/4.0/); full text in `src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/LICENSE.md`. This license applies to this package. The MIT license of the surrounding repository does **not** apply here.
+- **License:** [Creative Commons Attribution-NonCommercial 4.0](https://creativecommons.org/licenses/by-nc/4.0/); full text in `src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/LICENSE.md`. This license applies to this package, as to the rest of the repository.
 - **Modifications:** translated to Python by Andre Potthoff (with Claude), October 2026. The logic is kept unchanged, except for the deviations listed below (numerical necessities, a crash fix, exact AR estimators for short segments, and a few decisions by the user). Some names were made more descriptive and small inconsistencies fixed. Comments and docstrings were added for explanation.
 - **Demo data** (`data/external/senzai2019_YMV15.mat`): Senzai et al., *Neuron* (2019), distributed with the toolkit's demo.
 
@@ -22,7 +22,7 @@ Evidence for the statements below comes from `tests/test_prox_crit.py`, which co
 | `calc_db.m: QC_plot` | `plotting.qc_plot` |
 | `calc_dbv1.m: calc_dbv1` | `manifold.calc_db_euclidean` |
 | `yw_ar.m`, `mle_ar.m` | `ar.yw_ar`, `ar.mle_ar` |
-| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `src.models.autoregression.autoregression_model.run_ar` (re-exported here, CC BY-NC as well), `spike_counts.get_spike_counts` (plus `spike_counts.matlab_range`) |
+| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `src.models.autoregression.autoregression_model.run_ar` (re-exported here), `spike_counts.get_spike_counts` (plus `spike_counts.matlab_range`) |
 | `demo.mlx` | `notebooks/proxy_crit_Sooter/prox_crit_demo.ipynb` |
 | `demo_crit_db.m` | `notebooks/proxy_crit_Sooter/prox_crit_demo_crit_db.ipynb` |
 | `dbopt.with_QC` | `with_qc` |

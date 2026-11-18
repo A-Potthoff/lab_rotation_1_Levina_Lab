@@ -89,7 +89,7 @@ def exact_theoretical_std(m, n_steps, sigma=1.0):
 def run_ar(kern, sigma, T, rng=None, noise=None):
     """Simulate T steps of the AR model x_t = sum_k kern_k x_{t-k} + sigma eps_t.
 
-    NOT OWN WORK. Python translation of ``runAR`` (from the demos of prox_crit_toolkit, J. S. Sooter et al., https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0, unlike the rest of this file. Translated by Andre Potthoff (with Claude); see src/analysis/prox_crit/NOTICE.md.
+    NOT OWN WORK. Python translation of ``runAR`` (from the demos of prox_crit_toolkit, J. S. Sooter et al., https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude); see src/analysis/prox_crit/NOTICE.md.
 
     Starts from x = 0 before t = 1 (no burn-in), like the original loop. Implemented as the equivalent linear filter (scipy.signal.lfilter with zero initial state), which is exact and much faster than a Python loop.
 
