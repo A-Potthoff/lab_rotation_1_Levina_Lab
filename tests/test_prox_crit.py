@@ -464,6 +464,28 @@ def test_interface_and_error_paths(ar3):
         calc_db(ar3, 3, 1.0, 3)  # odd b is rejected
 
 
+def test_euclidean_metric(ar3):
+    """metric='euclidean': db is the L2 distance of the fitted kernel to M_b, unitless; error bars use the same delta method."""
+    kl = calc_db(ar3, 4, 1.0, 2, fit_method="MaxLikelihood")
+    r = calc_db(
+        ar3,
+        4,
+        0.25,
+        2,
+        fit_method="MaxLikelihood",
+        metric="euclidean",
+        with_err_bars=True,
+    )
+    db_euclidean, kernc = calc_db_euclidean(kl.kern, 2)
+    assert r.exit_status == 0 and r.db == db_euclidean
+    np.testing.assert_array_equal(r.kernc, kernc)
+    assert np.isfinite(r.sddb) and r.sddb > 0
+    with pytest.warns(UserWarning, match="invalid model order"):
+        assert np.isnan(calc_db(ar3, 1, 1.0, 4, metric="euclidean").db)
+    with pytest.raises(ValueError):
+        calc_db(ar3, 4, 1.0, 2, metric="L1")
+
+
 def test_minimize_klr_b_closest_model(ar3):
     kern = calc_db(ar3, 4, 1.0, 2).kern
     db, cm, ex = minimize_klr_b(kern, 2)

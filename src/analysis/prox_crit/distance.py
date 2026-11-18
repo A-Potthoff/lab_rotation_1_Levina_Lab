@@ -7,6 +7,7 @@ Pipeline of ``calc_db``:
 1. z-score the time series (one mean / std for all segments together).
 2. Fit an AR(order) model -> kern, sigma (Yule-Walker or maximum likelihood).
 3. d_b = minimum over critical kernels kernc in M_b of the KL rate klr(kern -> kernc) (minimize_klr_b, started from the L2-closest point).
+   With ``metric='euclidean'``: d_b = L2 distance of kern to M_b instead (calc_db_euclidean), and step 4 is skipped.
 4. Convert nats per time step -> bits per second: d_b * log2(e) / delta_t.
 5. Optional error bar (delta method): sd = sqrt(-grad(d_b)' H^-1 grad(d_b)), gradient by forward finite differences, H = log-likelihood Hessian (maximum likelihood fit only).
 
@@ -41,12 +42,12 @@ NATS_TO_BITS = np.log2(np.e)
 class DbResult(NamedTuple):
     """Outputs of calc_db (same order as the MATLAB output list, so it unpacks the same way)."""
 
-    db: float  # proximity to criticality of type b, bits/s
+    db: float  # proximity to criticality of type b, bits/s (unitless L2 distance if metric="euclidean")
     sddb: float  # error bar for db (nan unless with_err_bars and MaxLikelihood)
     kern: np.ndarray  # history kernel of the best-fit AR model
     sigma: float  # noise standard deviation of the best-fit AR model
     H: np.ndarray  # Hessian of the log-likelihood (nan unless MaxLikelihood)
-    kernc: np.ndarray  # kernel of the closest (in KL rate) AR model in M_b
+    kernc: np.ndarray  # kernel of the closest (in KL rate, or L2) AR model in M_b
     exit_status: int  # 0 if all calculations were successful, 1 otherwise
 
 
@@ -57,6 +58,7 @@ def calc_db(
     b,
     *,
     fit_method="YuleWalker",
+    metric="kl_rate",
     with_err_bars=False,
     with_qc=False,
     with_parallel=False,
@@ -75,10 +77,12 @@ def calc_db(
         Type of criticality to calculate proximity to (b = 2, 4, 6, ..., 2*order).
     fit_method : {'YuleWalker', 'MaxLikelihood'}, default 'YuleWalker'
         AR fitting method.
+    metric : {'kl_rate', 'euclidean'}, default 'kl_rate'
+        Distance to M_b. 'kl_rate': minimal KL-divergence rate in bits/s (Sooter et al.). 'euclidean': L2 distance ||kern - kernc|| in kernel space (``calc_db_euclidean``, the starting point of the KL minimization); unitless, independent of delta_t, and depends on the parameterization by the kernel.
     with_err_bars : bool, default False
         If True, calculate the error bar of db (MaxLikelihood only).
     with_qc : bool, default False
-        If True, make quality control plots (see plotting.qc_plot).
+        If True, make quality control plots (see plotting.qc_plot; metric 'kl_rate' only).
     with_parallel : bool, default False
         Accepted for compatibility with the original (parfor over the gradient components); always computed sequentially here, results are identical.
 
@@ -87,6 +91,8 @@ def calc_db(
     DbResult
         Named tuple (db, sddb, kern, sigma, H, kernc, exit_status).
     """
+    if metric not in ("kl_rate", "euclidean"):
+        raise ValueError(f"metric must be 'kl_rate' or 'euclidean', got {metric!r}")
     exit_status = 0
     # normalize data structure to be a list of 1D float arrays
     x = as_segments(x)
@@ -113,16 +119,22 @@ def calc_db(
         warnings.warn("Error: estimated model is explosive.")
         return DbResult(np.nan, np.nan, kern, sigma, H, np.nan, 1)
 
-    db, closest_model, exit_flag = minimize_klr_b(kern, b)  # db in nats per time step
-    if exit_flag == 1:
-        exit_status = 1
+    def distance_to_manifold(kern):
+        """(db, kernc, exit_flag) of one kernel, db in the output units of `metric`."""
+        if metric == "euclidean":
+            if len(kern) < half_order(b):
+                warnings.warn("WARNING: invalid model order")
+                return np.nan, np.nan, 1
+            db_euclidean, kernc = calc_db_euclidean(kern, b)
+            return db_euclidean, kernc, 0
+        db, closest_model, exit_flag = minimize_klr_b(kern, b)  # nats per time step
+        # CHANGED[3]: the original reads the field kernc here, which does not exist when minimize_klr_b took its "invalid model order" branch (order < b/2), so MATLAB crashes right after the intended warning. That branch clearly intends NaN output with exit status 1.
+        kernc = closest_model.get("kernc", np.nan)
+        return NATS_TO_BITS / delta_t * db, kernc, exit_flag
 
-    # CHANGED[3]: the original reads the field kernc here, which does not exist when minimize_klr_b took its "invalid model order" branch (order < b/2), so MATLAB crashes right after the intended warning. That branch clearly intends NaN output with exit status 1.
-    kernc = closest_model.get("kernc", np.nan)
+    db, kernc, exit_status = distance_to_manifold(kern)
 
-    db = NATS_TO_BITS / delta_t * db
-
-    if with_qc:
+    if with_qc and metric == "kl_rate":
         from .plotting import (
             qc_plot,
         )  # imported here so matplotlib is only needed for QC plots
@@ -139,7 +151,7 @@ def calc_db(
         )
         return DbResult(db, np.nan, kern, sigma, H, kernc, 1)
 
-    # Gradient of db with respect to kern by forward differences: perturb each kernel coefficient by `step` and rerun the whole minimization. If a perturbed kernel would be explosive, shrink the step by 10 and check all directions again.
+    # Gradient of db with respect to kern by forward differences: perturb each kernel coefficient by `step` and rerun the whole minimization (or L2 projection). If a perturbed kernel would be explosive, shrink the step by 10 and check all directions again.
     # FLAG[7]: one-sided differences (bias of order step), and stability is only checked in the + direction.
     step = 0.001
     unit_vectors = np.eye(order)
@@ -148,10 +160,10 @@ def calc_db(
 
     grad_db = np.zeros(order)
     for j in range(order):
-        db_perturbed, _, exit_flag = minimize_klr_b(kern + step * unit_vectors[j], b)
+        db_perturbed, _, exit_flag = distance_to_manifold(kern + step * unit_vectors[j])
         if exit_flag == 1:
             exit_status = 1
-        grad_db[j] = (NATS_TO_BITS / delta_t * db_perturbed - db) / step
+        grad_db[j] = (db_perturbed - db) / step
 
     # Delta method: Var(db) ~ grad' Cov(kern) grad with Cov(kern) ~ -H^-1.
     # FLAG[8]: if H is not negative definite the argument is negative; np.emath.sqrt then returns a complex number, as MATLAB does.
