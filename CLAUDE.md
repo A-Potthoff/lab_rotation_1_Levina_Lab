@@ -67,9 +67,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 # personal additions
 
 ## Code style
-- Readability first. Use descriptive names, e.g. `counter` not `cntr`, `rhs` for a right-hand side. Avoid one-letter variable names unless it is absolutely clear, or standard notation (eg i, j for iterations)
-- Keyword arguments where they clarify meaning, e.g. `np.random.default_rng(seed=0)` instead of `default_rng(0)`.
-- Don't hard-wrap prose in comments and docstrings: one line per sentence or paragraph is fine.
+- **Readability first**. Use descriptive names, e.g. `counter` not `cntr`, `rhs` for a right-hand side. Avoid one-letter variable names unless it is absolutely clear, or standard notation (eg i, j for iterations)
+- **Keyword arguments** where they clarify meaning, e.g. `np.random.default_rng(seed=0)` instead of `default_rng(0)`.
+- **Don't hard-wrap** prose in comments and docstrings: one line per sentence or paragraph is fine.
 - Comments explain the *why* and the formula being implemented. Don't add trivial comments.
 - Small inconsistencies (bad names, truncated comments, dead code) are simply fixed, with a short comment where the reason isn't obvious. They don't need entries in a flag list.
 - use explicit mappings where possible without overhead of code/compute. eg. for plotting, I prefer a {"state1": "blue", "state2":"red"} dict over an abstract index that is hard to read.
@@ -78,6 +78,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - \# Commment: Wake = ndarray(ndarray(float))
   - WAKE, NREM, REM = ( states.loc[states["state"] == s, ["start_s", "end_s"]].to_numpy() for s in ("WAKE", "NREM", "REM"))
 - or anything similar that is short and helps parsing code more quickly
+- use comment-style comments. not every "the" is necessary, "info" works as well as "information". brevity increases readability more, as long as we stay in this regime of unnecessary grammar. you may use common abbreviations (wrt, eg, s.t.)
 
 ## Notebooks
 - Load `jupyter_black` in the first code cell (`%load_ext jupyter_black`), so cells are formatted consistently.
@@ -87,6 +88,12 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - put insights in comments, not so much in fully formatted print statements. do both, but keep cell outputs rather data-centered.
 
 ## Structure
-- general functions are good and useful, but don't export every function definition to source. Example: if we deal with the data in only ever one notebook, do not write functions for reading in the data into source. Write it in the notebook instead. otherwise, we clutter the source folder with highly-specific underused functions.
-- use global path variables sparsely. results, data_dirs, etc are sensible. but not every single data file needs a path in src/config/paths. use it if necessary, don't clutter. you can define paths in notebooks if needed.
+- general functions are good and useful, but **don't export every function definition to source**. Example: if we deal with the data in only ever one notebook, do not write functions for reading in the data into source. Write it in the notebook instead. otherwise, we clutter the source folder with highly-specific underused functions.
+- use **global path variables sparsely**. results, data_dirs, etc are sensible. but not every single data file needs a path in src/config/paths. use it if necessary, don't clutter. you can define paths in notebooks if needed.
 - the same goes for variables. if we only need a list once for iteration, a "for states in ["WAKE", "REM", "NREM"]" is fine and we don't need a states_list variable for this. use it, if it gets reused, though!
+
+# Workflow
+
+you will finde a **CLAUDE_todo.md** in the project. this is where I put miscelaneous tasks that are not worth a separate prompt. Only consider it for longer tasks in which you work in the repo anyways. Always prioritize the task at hand in a given prompt. Only once you are done, look into the todo list, and work through the tasks. Make separate commits for them. After completion, move the todo to a "done" section in the same CLAUDE_todo file.
+
+when I ask you to **cleanup** the codebase, I do not want you to alter the code nor remove or explanatory comments. I want you to take care of maintenance, such as updating init files, correcting typos (only if there are ~~obviuos~~ obvious). spot inconsistent variable naming (but before changing, always ask weather you may change the names, and if you do so, do it consistently).
