@@ -119,15 +119,13 @@ def stability_constraint(kernc, b):
     -------
     c : float
         c = 1 - min |root| of the lifted kernel's AR polynomial: the roots must lie outside the unit disk.
-    ceq : empty array
-        Equality constraints: none.
+
+    The original ``con`` also returns ``ceq = []`` (no equality constraints), which fmincon's interface requires; SLSQP takes the inequality alone, so it is dropped.
 
     On M_b, z = 1 is always a root (multiplicity b/2), so c >= 0 by construction: c ~ 0 up to root-finding round-off (~1e-16 for b=2, ~1e-8 for b=4, ~1e-5 for b=6), and c is non-smooth (minimum over roots). It therefore only rules out other roots inside the unit circle once a tolerance is added: fmincon's ConstraintTolerance 0.01 in the original, built into the constraint in minimize_klr_b.
     """
     kernc = beta_lift(kernc, b)
-    c = 1 - np.min(np.abs(ar_roots(kernc)))
-    ceq = np.array([])
-    return c, ceq
+    return 1 - np.min(np.abs(ar_roots(kernc)))
 
 
 def calc_db_euclidean(kern, b):

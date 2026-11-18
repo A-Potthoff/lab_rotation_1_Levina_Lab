@@ -241,7 +241,7 @@ def minimize_klr_b(kern, b, optimizer="SLSQP"):
             constraint = {
                 "type": "ineq",
                 "fun": lambda kernc_reduced: CONSTRAINT_TOLERANCE
-                - stability_constraint(kernc_reduced, b)[0],
+                - stability_constraint(kernc_reduced, b),
             }
             result = minimize(
                 objective,
