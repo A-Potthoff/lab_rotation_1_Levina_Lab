@@ -47,8 +47,10 @@ def qc_plot(kern, kernc, db, b, delta_t, scan_width=0.2):
         for j, value in enumerate(scan):
             kernc_scan = kernc[:n_free].copy()
             kernc_scan[i] = value
-            # FLAG[6]: 'trapz' here, while the optimization used 'integral'. 1000 trapezoid points under-resolve the log singularity at w = 0, so the curve lies ~1% BELOW the db line even at the optimum; judge the location of the minimum, not its height.
-            klr[j] = np.log2(np.e) / delta_t * get_klr_b(kern, kernc_scan, b, "trapz")
+            # 'integral' as in the optimization; the original uses 'trapz' here, whose 1000 points under-resolve the log singularity at w = 0, so its curve lay below the db line (~1%, up to ~25% close to criticality). ~5 ms per point.
+            klr[j] = (
+                np.log2(np.e) / delta_t * get_klr_b(kern, kernc_scan, b, "integral")
+            )
             is_explosive[j] = explosive(beta_lift(kernc_scan, b))
         ax.plot(scan[is_explosive], klr[is_explosive], ".r", markersize=10)
         ax.plot(scan[~is_explosive], klr[~is_explosive], ".c", markersize=10)
