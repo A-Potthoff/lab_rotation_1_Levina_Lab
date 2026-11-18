@@ -164,6 +164,11 @@ def calc_db(
     unit_vectors = np.eye(order)
     while any(explosive(kern + step * unit_vectors[j]) for j in range(order)):
         step = step / 10
+    # Known issue (NOTICE.md): if kern is closer to M_2 (sum(kern) = 1) than step, each + perturbation raises sum(kern) by step and crosses M_2 (explosive() lets roots with |z| >= 0.99 pass), where db has a kink (d_2 ~ |1 - sum(kern)|, V-shaped), so the difference quotient straddles the kink. Only warned, the step is kept as in the original.
+    if kern.sum() < 1 < kern.sum() + step:
+        warnings.warn(
+            f"error bars unreliable: the fitted kernel is closer to criticality (1 - sum(kern) = {1 - kern.sum():.1e}) than the finite-difference step ({step:g}), so the gradient of db straddles the kink of db at the critical manifold M_2 and sddb is typically too small (NOTICE.md, known issue 5)."
+        )
 
     grad_db = np.zeros(order)
     for j in range(order):

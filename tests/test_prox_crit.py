@@ -392,6 +392,48 @@ def test_quadrature_accuracy():
     )
 
 
+@pytest.mark.parametrize("eps", [1e-2, 1e-3, 1e-4, 1e-5, 1e-6])
+def test_kl_rate_near_criticality(eps):
+    """b = 2 close to criticality, where the KL rate sits in a log spike of width ~eps at w = 0 (get_klr_b).
+
+    The original quadrature returned ~0 here from eps ~ 1e-4 on (relative error 1, with IntegrationWarnings); the log-w integration must be accurate and silent.
+    (a) AR(1) kern = [1 - eps]: M_2 is one point (kernc = [1]), closed form klr = -1/2 log(1 - eps/2) (see notebooks/prox_crit_branching_network.ipynb). Observed error <= 3e-8 (relative).
+    (b) order 5 with a root at 1 + eps, kernc = its L2 projection on M_2 (close, as during the optimization): time-domain formula (test_kl_rate_equals_time_domain_formula). Float autocovariances are ~1/eps large, so their round-off limits (b) to eps >= 1e-4 and to atol 1e-10 (= quad's absolute tolerance; observed 9e-12, while a 40-digit reference gives ~1e-14).
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # also turns IntegrationWarnings into failures
+        klr = get_klr_b([1 - eps], [], 2, "integral")
+        np.testing.assert_allclose(klr, -0.5 * np.log1p(-eps / 2), rtol=1e-7)  # (a)
+
+        if eps < 1e-4:
+            return
+        kern = _ar_kernel_from_roots([1 + eps, 1.6, -2.0, 2.5 + 1j, 2.5 - 1j])
+        kc = calc_db_euclidean(kern, 2)[1]
+        g = _autocov(kern, len(kc))
+        Gamma = np.array(
+            [[g[abs(i - j)] for j in range(len(kc) + 1)] for i in range(len(kc) + 1)]
+        )
+        e = np.r_[1.0, -kc]
+        klr = get_klr_b(kern, beta_project(kc, 2), 2, "integral")
+        np.testing.assert_allclose(
+            klr, 0.5 * np.log(e @ Gamma @ e), rtol=0, atol=1e-10
+        )  # (b)
+
+
+def test_kl_rate_b4_warns_if_quad_fails():
+    """b >= 4 keeps the original quadrature; if quad reports non-convergence, get_klr_b warns (and still returns its value)."""
+
+    def fake_quad(*args, **kwargs):
+        # the KL integral asks for full_output; with ier > 0 quad appends a message
+        if kwargs.get("full_output"):
+            return 0.123, 1e-3, {}, "quad message"
+        return 1.0, 0.0  # sigma ratio integral
+
+    with mock.patch("src.analysis.prox_crit.kl_rate.quad", side_effect=fake_quad):
+        with pytest.warns(UserWarning, match="unreliable at b >= 4.*Powell"):
+            assert get_klr_b([1.9, -0.9], [], 4, "integral") == 0.123
+
+
 def test_mle_ar_against_literal_loop_and_hessian():
     rng = np.random.default_rng(seed=1)
     segs = [run_ar([0.5, -0.2, 0.1], 1, n, rng=rng) for n in (400, 250, 2)]
@@ -572,9 +614,32 @@ def test_powell_optimizer(ar3):
     near_critical = np.r_[1 - 1e-3, np.zeros(4)]
     db_slsqp = minimize_klr_b(near_critical, 6)[0]
     db_powell, cm, exit_flag = minimize_klr_b(near_critical, 6, optimizer="Powell")
-    assert exit_flag == 0 and db_powell < 0.9 * db_slsqp  # SLSQP stops ~40% above
+    # SLSQP stops 1.6% above (41% before the sigma ratio was integrated in log w, NOTICE.md)
+    assert exit_flag == 0 and db_powell < 0.99 * db_slsqp
     with pytest.raises(ValueError):
         minimize_klr_b(kern, 2, optimizer="BFGS")
+
+
+@pytest.mark.parametrize("gap, warns", [(5e-4, True), (2e-3, False)])
+def test_error_bar_step_crossing_criticality_warns(ar3, gap, warns):
+    """Known issue 5: warn iff 0 < 1 - sum(kern) < step (1e-3), ie the + perturbations of the error bars cross M_2. The fit is mocked to a kernel with sum 1 - gap."""
+    import src.analysis.prox_crit.distance as distance
+
+    kern = np.r_[0.6, 0.2, 0.1, 0.05, 0.05 - gap]
+    fit = (kern, 0.3, -1e5 * np.eye(5))  # (kern, sigma, H) as returned by mle_ar
+    with mock.patch.object(distance, "mle_ar", return_value=fit):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            calc_db(
+                ar3,
+                5,
+                1.0,
+                2,
+                fit_method="MaxLikelihood",
+                metric="euclidean",
+                with_err_bars=True,
+            )
+    assert any("error bars unreliable" in str(w.message) for w in caught) == warns
 
 
 def test_minimize_klr_b_closest_model(ar3):
