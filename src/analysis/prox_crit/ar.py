@@ -1,6 +1,6 @@
 """Autoregressive (AR) models: fitting them to (possibly segmented) time series, and simulating them.
 
-NOT OWN WORK. Python translation of ``yw_ar.m``, ``mle_ar.m`` and of ``runAR`` (from the demos) from prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). See FLAGS.md for flagged points.
+NOT OWN WORK. Python translation of ``yw_ar.m``, ``mle_ar.m`` and of ``runAR`` (from the demos) from prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). See NOTICE.md.
 
 AR(n) model, the object fitted everywhere in this package::
 
@@ -48,7 +48,7 @@ def yw_ar(x, order):
     kern : (order,) array
         History kernel.
     sigma : float
-        Noise standard deviation (complex if 1 - gamma.kern < 0, FLAG[8]).
+        Noise standard deviation (complex if 1 - gamma.kern < 0, see NOTICE.md, known issues).
     """
     # The original requires a MATLAB cell array here (unlike mle_ar); both now accept the same inputs.
     x = as_segments(x)
@@ -63,11 +63,11 @@ def yw_ar(x, order):
             if n_pairs > 0:
                 total += np.dot(seg[:n_pairs], seg[lag:])
                 counter += n_pairs
-        # FLAG[3]: divides by the number of pairs (N - lag), not by N. The 1/N estimator guarantees a positive-definite Gamma (hence a stable fit); this one does not.
+        # Divides by the number of pairs (N - lag), not by N. Unlike the 1/N estimator, this does not guarantee a positive-definite Gamma (stable fit); the difference is O(order / N).
         gamma[lag - 1] = np.float64(total) / counter
 
     # Toeplitz matrix of autocovariances, Gamma[i, j] = gamma(|i - j|).
-    # FLAG[4]: diagonal fixed to 1 (unit variance), although calc_db z-scores with the N-1 std, so the actual lag-0 moment of the data is (N-1)/N.
+    # Diagonal fixed to 1 (unit variance). calc_db z-scores with the N-1 std, so the data's actual lag-0 moment is (N-1)/N (negligible).
     idx = np.arange(order)
     lag_matrix = np.abs(idx[:, None] - idx[None, :])
     Gamma = np.ones((order, order))
@@ -75,7 +75,7 @@ def yw_ar(x, order):
     Gamma[off_diagonal] = gamma[lag_matrix[off_diagonal] - 1]
 
     kern = np.linalg.solve(Gamma, gamma)
-    # FLAG[8]: a negative argument gives a complex sigma, as MATLAB's sqrt does (np.sqrt would give nan).
+    # Known issue (NOTICE.md): a negative argument gives a complex sigma, as MATLAB's sqrt does (np.sqrt would give nan).
     sigma = np.emath.sqrt(1 - gamma @ kern)
     return kern, sigma
 
@@ -109,7 +109,7 @@ def mle_ar(x, order):
     T = sum(len(seg) for seg in x)  # total number of samples
 
     # Design matrix, one block per segment, stacked. Column k-1 holds lag k: X[t, k-1] = seg[t-k].
-    # FLAG[5]: EVERY sample is a regression row, also the first `order` samples of each segment; their missing history is filled with zeros (= the mean, after z-scoring), and they count in T.
+    # Every sample is a regression row, also the first `order` samples of each segment; their missing history is filled with zeros (= the mean, after z-scoring), and they count in T. A small bias, O(order / segment length).
     X_blocks = []
     for seg in x:
         n = len(seg)

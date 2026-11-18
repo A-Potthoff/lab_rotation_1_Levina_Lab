@@ -54,7 +54,7 @@ cases = np.array(
         [3, 4, 2, 1, 1],
         [3, 4, 4, 0, 0],
         [1, 3, 6, 0, 0],  # order == b/2: M_b is a single point
-        [1, 2, 6, 0, 0],  # order < b/2: crashes in MATLAB (CHANGED[3])
+        [1, 2, 6, 0, 0],  # order < b/2: crashes in MATLAB
     ],
     dtype=float,
 )

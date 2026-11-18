@@ -1,6 +1,6 @@
 """Spike-count time series from spike times (binning).
 
-NOT OWN WORK. Python translation of the auxiliary function ``get_spike_counts`` from ``demo/demo.mlx`` and ``demo/demo_crit_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged except CHANGED[5]; see FLAGS.md.
+NOT OWN WORK. Python translation of the auxiliary function ``get_spike_counts`` from ``demo/demo.mlx`` and ``demo/demo_crit_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged except for the dropped last bin (see get_spike_counts and NOTICE.md).
 """
 
 import numpy as np
@@ -57,7 +57,7 @@ def get_spike_counts(st, t1, t2, delta_t):
 
     Bin edges e_1 < ... < e_N are MATLAB's ``t1:delta_t:t2``; the N-1 bins are half-open, count_k = #{e_k <= st < e_{k+1}}. Spikes outside [e_1, e_N) are ignored.
 
-    CHANGED[5]: MATLAB's ``histc`` returns one more value, count_N = #{st == e_N}, which is almost always 0. That spurious trailing sample is dropped here. Effect on the demo's d2 values: at most 0.07% (WAKE 1.0092 -> 1.0097, error bar 0.016).
+    Deviation from the original: MATLAB's ``histc`` returns one more value, count_N = #{st == e_N}, which is almost always 0. That spurious trailing sample is dropped here. Effect on the demo's d2 values: at most 0.07% (WAKE 1.0092 -> 1.0097, error bar 0.016).
 
     Returns
     -------

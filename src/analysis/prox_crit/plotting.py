@@ -1,6 +1,6 @@
 """Quality-control (QC) plot of the d_b optimization.
 
-NOT OWN WORK. Python translation of the local function ``QC_plot`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). See FLAGS.md.
+NOT OWN WORK. Python translation of the local function ``QC_plot`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). See NOTICE.md.
 
 What it shows (from the original tutorial): one panel per free component of the critical kernel. Each panel scans that component around the optimum, keeping the others fixed, and plots the KL rate to the fitted model. The optimization succeeded if the black lines (optimum, db) meet at the visual minimum, at a cyan (stable) rather than red (explosive) point.
 """

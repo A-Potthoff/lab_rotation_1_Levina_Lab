@@ -1,6 +1,6 @@
 """Geometry of the critical manifold M_b of AR(n) models.
 
-NOT OWN WORK. Python translation of ``calc_dbv1.m`` and of the local functions ``beta_project``, ``beta_lift``, ``con`` and ``explosive`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). See FLAGS.md for flagged points.
+NOT OWN WORK. Python translation of ``calc_dbv1.m`` and of the local functions ``beta_project``, ``beta_lift``, ``con`` and ``explosive`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). See NOTICE.md.
 
 Background (for recognition, no derivation):
 
@@ -47,7 +47,7 @@ def explosive(kern):
     Take an AR model, then its kernel phi defines a polynomial P(z) = 1 - sum_k phi_k z^k on the complex plane. The model is stationary/stable iff all roots of P lie outside the unit circle. Therefore, the model is explosive iff at least one root lies inside the unit circle.
     Eg. AR(1) with phi_1 = 0.5 has P(z) = 1 - 0.5 z, root at z = 2 outside the unit circle, so it is stable. AR(1) with phi_1 = 1.5 has P(z) = 1 - 1.5 z, root at z = 2/3 inside the unit circle, so it is explosive.
 
-    FLAG[2]: tolerance 1e-2, so a model with a root at |z| in [0.99, 1) counts as NOT explosive.
+    Tolerance 1e-2: a model with a root at |z| in [0.99, 1) counts as not explosive.
     """
     tolerance = 1e-2
     roots = ar_roots(kern)
@@ -122,7 +122,7 @@ def stability_constraint(kernc, b):
     ceq : empty array
         Equality constraints: none.
 
-    FLAG[1]: on M_b, z = 1 is ALWAYS a root (multiplicity b/2), so c >= 0 by construction: the constraint is permanently at its boundary, c ~ 0 up to root-finding round-off (~1e-16 for b=2, ~1e-8 for b=4, ~1e-5 for b=6). It is also non-smooth (minimum over roots). The original works because fmincon accepts c <= ConstraintTolerance = 0.01 (see CHANGED[2]).
+    On M_b, z = 1 is always a root (multiplicity b/2), so c >= 0 by construction: c ~ 0 up to root-finding round-off (~1e-16 for b=2, ~1e-8 for b=4, ~1e-5 for b=6), and c is non-smooth (minimum over roots). It therefore only rules out other roots inside the unit circle once a tolerance is added: fmincon's ConstraintTolerance 0.01 in the original, built into the constraint in minimize_klr_b.
     """
     kernc = beta_lift(kernc, b)
     c = 1 - np.min(np.abs(ar_roots(kernc)))
