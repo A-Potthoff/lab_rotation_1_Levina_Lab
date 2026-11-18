@@ -1,5 +1,6 @@
 import numpy as np
 # import matplotlib.pyplot as plt  # unused
+from scipy.signal import lfilter
 from scipy.special import comb
 
 def get_ar_coeffs(m):
@@ -83,3 +84,35 @@ def exact_theoretical_std(m, n_steps, noise_scale=1.0):
     h_j = comb(j + m - 1, m - 1)
     var_t = (noise_scale ** 2) * np.cumsum(h_j ** 2)
     return np.sqrt(var_t)
+
+
+def run_ar(kern, sigma, T, rng=None, noise=None):
+    """Simulate T steps of the AR model x_t = sum_k kern_k x_{t-k} + sigma eps_t.
+
+    NOT OWN WORK. Python translation of ``runAR`` (from the demos of prox_crit_toolkit, J. S. Sooter et al., https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0, unlike the rest of this file. Translated by Andre Potthoff (with Claude); see src/analysis/prox_crit/NOTICE.md.
+
+    Starts from x = 0 before t = 1 (no burn-in), like the original loop. Implemented as the equivalent linear filter (scipy.signal.lfilter with zero initial state), which is exact and much faster than a Python loop.
+
+    Parameters
+    ----------
+    kern : array
+        History kernel (kern[k-1] = coefficient of lag k).
+    sigma : float
+        Noise standard deviation.
+    T : int
+        Number of time steps.
+    rng : numpy.random.Generator, optional
+        Random generator for the noise, e.g. ``np.random.default_rng(seed=0)``. MATLAB's randn stream cannot be reproduced, so simulated series differ from MATLAB's sample by sample (not in distribution).
+    noise : (T,) array, optional
+        Pre-drawn standard-normal noise (overrides rng; used for testing).
+
+    Returns
+    -------
+    x : (T,) array
+    """
+    kern = np.asarray(kern, dtype=float).ravel()
+    if noise is None:
+        rng = np.random.default_rng() if rng is None else rng
+        noise = rng.standard_normal(int(T))
+    # lfilter solves  x_t - sum_k kern_k x_{t-k} = sigma * eps_t  for x
+    return lfilter([1.0], np.r_[1.0, -kern], sigma * np.asarray(noise, dtype=float))
