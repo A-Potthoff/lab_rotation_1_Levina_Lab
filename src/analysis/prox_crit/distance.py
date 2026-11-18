@@ -1,6 +1,6 @@
 """Proximity to criticality d_b: main entry point ``calc_db``.
 
-NOT OWN WORK. Python translation of ``calc_db`` and ``minimize_klr_b`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged except CHANGED[2] and CHANGED[3]; see FLAGS.md.
+NOT OWN WORK. Python translation of ``calc_db`` and ``minimize_klr_b`` from ``calc_db.m``, prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Logic unchanged except the deviations listed in NOTICE.md (optimizer, crash fix, added options).
 
 Pipeline of ``calc_db``:
 
@@ -34,8 +34,10 @@ from .manifold import (
 # Optimizer. The original uses MATLAB's fmincon with
 #   optimoptions('fmincon', 'Display','none', 'Algorithm','sqp', 'ConstraintTolerance',0.01, 'MaxFunctionEvaluations',10000, 'StepTolerance',1e-15)
 # Translation: scipy's SLSQP (also an SQP method; finite-difference gradients like fmincon). maxiter = fmincon's default MaxIterations for 'sqp'. SLSQP has no step or constraint tolerance options; ftol (convergence threshold on the change of the objective) is chosen tight so that SLSQP stops at the minimizer.
+# Why SLSQP: compared with Nelder-Mead, Powell, COBYLA, BFGS and L-BFGS-B on the test cases and on near-critical kernels, it was the fastest and among the most accurate (<= 1e-7 relative), except for b = 6 close to criticality, where it can stop far above the minimum (see NOTICE.md, known issues). Powell (derivative-free) found the minimum in all cases, but is 10-20x slower; available as optimizer="Powell".
 CONSTRAINT_TOLERANCE = 0.01
 SLSQP_OPTIONS = dict(maxiter=400, ftol=1e-12)
+POWELL_OPTIONS = dict(xtol=1e-8, ftol=1e-12)
 NATS_TO_BITS = np.log2(np.e)
 
 
@@ -59,6 +61,7 @@ def calc_db(
     *,
     fit_method="YuleWalker",
     metric="kl_rate",
+    optimizer="SLSQP",
     with_err_bars=False,
     with_qc=False,
     with_parallel=False,
@@ -79,6 +82,8 @@ def calc_db(
         AR fitting method.
     metric : {'kl_rate', 'euclidean'}, default 'kl_rate'
         Distance to M_b. 'kl_rate': minimal KL-divergence rate in bits/s (Sooter et al.). 'euclidean': L2 distance ||kern - kernc|| in kernel space (``calc_db_euclidean``, the starting point of the KL minimization); unitless, independent of delta_t, and depends on the parameterization by the kernel.
+    optimizer : {'SLSQP', 'Powell'}, default 'SLSQP'
+        Optimizer of the KL minimization (see minimize_klr_b). 'Powell' is slower but robust where SLSQP fails (b = 6 near criticality).
     with_err_bars : bool, default False
         If True, calculate the error bar of db (MaxLikelihood only).
     with_qc : bool, default False
@@ -127,8 +132,10 @@ def calc_db(
                 return np.nan, np.nan, 1
             db_euclidean, kernc = calc_db_euclidean(kern, b)
             return db_euclidean, kernc, 0
-        db, closest_model, exit_flag = minimize_klr_b(kern, b)  # nats per time step
-        # CHANGED[3]: the original reads the field kernc here, which does not exist when minimize_klr_b took its "invalid model order" branch (order < b/2), so MATLAB crashes right after the intended warning. That branch clearly intends NaN output with exit status 1.
+        db, closest_model, exit_flag = minimize_klr_b(
+            kern, b, optimizer=optimizer
+        )  # nats/step
+        # The original reads the field kernc here, which does not exist after minimize_klr_b's "invalid model order" branch (order < b/2), so MATLAB crashes right after the intended warning. That branch clearly intends NaN output with exit status 1.
         kernc = closest_model.get("kernc", np.nan)
         return NATS_TO_BITS / delta_t * db, kernc, exit_flag
 
@@ -152,7 +159,7 @@ def calc_db(
         return DbResult(db, np.nan, kern, sigma, H, kernc, 1)
 
     # Gradient of db with respect to kern by forward differences: perturb each kernel coefficient by `step` and rerun the whole minimization (or L2 projection). If a perturbed kernel would be explosive, shrink the step by 10 and check all directions again.
-    # FLAG[7]: one-sided differences (bias of order step), and stability is only checked in the + direction.
+    # One-sided differences: bias of order step. Only + perturbations are used, so only those are checked for stability.
     step = 0.001
     unit_vectors = np.eye(order)
     while any(explosive(kern + step * unit_vectors[j]) for j in range(order)):
@@ -166,12 +173,12 @@ def calc_db(
         grad_db[j] = (db_perturbed - db) / step
 
     # Delta method: Var(db) ~ grad' Cov(kern) grad with Cov(kern) ~ -H^-1.
-    # FLAG[8]: if H is not negative definite the argument is negative; np.emath.sqrt then returns a complex number, as MATLAB does.
+    # Known issue (NOTICE.md): if H is not negative definite the argument is negative; np.emath.sqrt then returns a complex number, as MATLAB does.
     sddb = np.emath.sqrt(-grad_db @ np.linalg.solve(H, grad_db))
     return DbResult(db, sddb, kern, sigma, H, kernc, exit_status)
 
 
-def minimize_klr_b(kern, b):
+def minimize_klr_b(kern, b, optimizer="SLSQP"):
     """Minimize the KL divergence rate from ``kern`` over the critical manifold M_b.
 
     Within this function and the functions it calls, kernels on M_b are represented by their reduced kernel (first n - b/2 entries): ``beta_lift`` completes a reduced kernel to the full kernel, ``beta_project`` truncates a full kernel to the reduced one.
@@ -186,6 +193,8 @@ def minimize_klr_b(kern, b):
         Kernel of an AR(n) model (n is determined by the length).
     b : int (even)
         Order of the critical manifold M_b (2, 4, 6, ...).
+    optimizer : {'SLSQP', 'Powell'}, default 'SLSQP'
+        'SLSQP': as the original (fmincon 'sqp'), fast. 'Powell': derivative-free, 10-20x slower, but robust to the noise of the quadrature-based objective; the stability constraint becomes a barrier (objective = inf for explosive models).
 
     Returns
     -------
@@ -196,6 +205,8 @@ def minimize_klr_b(kern, b):
     exit_flag : int
         0 if successful.
     """
+    if optimizer not in ("SLSQP", "Powell"):
+        raise ValueError(f"optimizer must be 'SLSQP' or 'Powell', got {optimizer!r}")
     kern = np.asarray(kern, dtype=float).ravel()
     exit_flag = 0
     closest_model = {}
@@ -220,28 +231,43 @@ def minimize_klr_b(kern, b):
         _, kernc_l2 = calc_db_euclidean(kern, b)
         kernc_start = beta_project(kernc_l2, b)
 
-        # CHANGED[2]: the original's constraint is c <= 0 with fmincon's ConstraintTolerance 0.01. SLSQP has no tolerance option and treats its inequality fun(x) >= 0 as hard. Since c ~ 0 with round-off noise of either sign on M_b by construction (FLAG[1]), a hard c <= 0 can be infeasible; the constraint is therefore passed as 0.01 - c >= 0.
-        constraint = {
-            "type": "ineq",
-            "fun": lambda kernc_reduced: CONSTRAINT_TOLERANCE
-            - stability_constraint(kernc_reduced, b)[0],
-        }
-        result = minimize(
-            objective,
-            kernc_start,
-            method="SLSQP",
-            constraints=[constraint],
-            options=SLSQP_OPTIONS,
-        )
+        if optimizer == "SLSQP":
+            # Stability constraint, fmincon convention c <= 0 with ConstraintTolerance 0.01. On M_b, c ~ 0 (z = 1 is always a root, see stability_constraint), with round-off of either sign; SLSQP has no tolerance option and treats its constraint fun >= 0 as hard, so the tolerance is built in: 0.01 - c >= 0, ie no root with |z| < 0.99 (same rule as `explosive`).
+            constraint = {
+                "type": "ineq",
+                "fun": lambda kernc_reduced: CONSTRAINT_TOLERANCE
+                - stability_constraint(kernc_reduced, b)[0],
+            }
+            result = minimize(
+                objective,
+                kernc_start,
+                method="SLSQP",
+                constraints=[constraint],
+                options=SLSQP_OPTIONS,
+            )
+        else:
+            # Powell takes no nonlinear constraints, so the same rule is a barrier. Without it, Powell can end on an explosive "twin" of the minimum (similar spectrum, same KL rate).
+            def objective_stable(kernc_reduced):
+                if explosive(beta_lift(kernc_reduced, b)):
+                    return np.inf
+                return objective(kernc_reduced)
+
+            # inf - inf in Brent's parabolic step is harmless (falls back to a golden-section step)
+            with np.errstate(invalid="ignore"):
+                result = minimize(
+                    objective_stable,
+                    kernc_start,
+                    method="Powell",
+                    options=POWELL_OPTIONS,
+                )
         # As in the original, the optimizer's own success flag is not checked; only the stability check below can set exit_flag.
-        # FLAG[9]: for b >= 4 the ORIGINAL (fmincon) stops early, barely past this L2 starting point: in the reference cases its db is up to ~6% above the true minimum (verified with mpmath and Nelder-Mead; likely cause FLAG[1]). SLSQP reaches the minimum, so for b >= 4 this port gives LOWER db than MATLAB; for b = 2 they agree to 2e-7 (tests).
-        # FLAG[10]: the gradients are finite differences (step ~1.5e-8, as in fmincon) of an objective computed by adaptive quadrature, which at b >= 4 is only ~1e-7 accurate. The noisy gradient lets the optimizer stop up to ~1e-5 (relative) above the minimum, and error bars (FLAG[7]) inherit this noise for b >= 4.
+        # Known issue (NOTICE.md): for b >= 4 the original's fmincon stops early, so this port gives lower db than MATLAB there. SLSQP itself can stop far above the minimum for b = 6 close to criticality; optimizer="Powell" is robust there.
         db = result.fun
 
         closest_model["kernc"] = beta_lift(result.x, b)
         closest_model["sigmac"] = get_sigmac(kern, closest_model["kernc"])
 
-        # The lifted kernel is always on M_b (critical by construction). This check applies the same 0.99 rule as the constraint, so it only fires if SLSQP ended outside its fence, ie left the non-explosive part of M_b (possible within SLSQP's feasibility tolerance, or if it hit maxiter).
+        # The lifted kernel is always on M_b (critical by construction). This check applies the same 0.99 rule as the constraint, so it only fires if the optimizer ended outside that fence, ie left the non-explosive part of M_b (SLSQP: within its feasibility tolerance or at maxiter; Powell: only if it started on an explosive point).
         if explosive(closest_model["kernc"]):
             exit_flag = 1
             db = np.nan

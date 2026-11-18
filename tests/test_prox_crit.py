@@ -137,14 +137,14 @@ def test_db_single_point_manifold_matches_matlab(ref):
 
 
 def test_db_higher_b_python_reaches_lower_minimum(ref):
-    """b >= 4: the objective is the same, but fmincon stops early (FLAG[9]).
+    """b >= 4: the objective is the same, but fmincon stops early (NOTICE.md, known issues).
 
     (a) Python's KL rate evaluated at MATLAB's kernc reproduces MATLAB's db
         (same objective function). rtol 2e-5: at b = 6 both quadratures
         (scipy, MATLAB) deviate up to ~1e-5 from a 25-digit mpmath value.
     (b) Python's db is never above MATLAB's.
     (c) Python's minimum is confirmed by an independent optimizer
-        (Nelder-Mead). rtol 2e-5: FLAG[10], finite-difference gradients of
+        (Nelder-Mead). rtol 2e-5: finite-difference gradients of
         the ~1e-7-accurate objective let SLSQP stop up to ~1e-5 above the
         minimum at b >= 4 (MATLAB's fmincon uses the same step size).
     """
@@ -167,7 +167,7 @@ def test_db_higher_b_python_reaches_lower_minimum(ref):
 
 
 def test_order_below_b_half(ref):
-    """CHANGED[3]: MATLAB crashes on cm.kernc; Python returns NaN, exit 1."""
+    """order < b/2: MATLAB crashes on cm.kernc; Python returns NaN, exit 1."""
     (i,) = _cases(ref, lambda d, o, b, f, e: o < b // 2)
     assert "kernc" in ref["out"]["errmsg"][i]  # the MATLAB crash
     r = ref["py"][i]
@@ -175,7 +175,7 @@ def test_order_below_b_half(ref):
 
 
 def test_spike_counts_match_matlab_histc(ref):
-    """Bin edges (MATLAB colon) and histc counts: bit-identical (minus histc's extra last value, CHANGED[5])."""
+    """Bin edges (MATLAB colon) and histc counts: bit-identical (minus histc's extra last value, dropped by design)."""
     out = ref["out"]
     d = sio.loadmat(YMV15_MAT, squeeze_me=True, variable_names=["st", "WAKE"])
     st = d["st"]
@@ -292,7 +292,7 @@ def test_kl_rate_equals_time_domain_formula(b, rtol):
         klr       = 1/2 [log sigma_c^2 + e' Gamma_P e / sigma_c^2 - 1]
                   = 1/2 log(e' Gamma_P e)
     This also confirms that get_sigmac returns sigma_c relative to sigma = 1. The b = 4
-    case also exercises CHANGED[4] (g_c underflow next to w = 0); its rtol
+    case also exercises the g_c underflow next to w = 0 (get_klr_b); its rtol
     1e-6 is the integral's RelTol (observed 1.4e-7), b = 2 is near exact.
     (Valid only for a non-explosive kernc, since it uses int log g_c = 0.)
     """
@@ -413,7 +413,9 @@ def test_explosive_threshold():
     assert not explosive(_ar_kernel_from_roots([1.5, 2.0]))
     assert explosive(_ar_kernel_from_roots([0.5, 2.0]))
     assert explosive(_ar_kernel_from_roots([0.98, 2.0]))
-    assert not explosive(_ar_kernel_from_roots([0.995, 2.0]))  # FLAG[2] tolerance
+    assert not explosive(
+        _ar_kernel_from_roots([0.995, 2.0])
+    )  # tolerance: |z| >= 0.99 is not explosive
     assert not explosive([0.0, 0.0])  # no roots: MATLAB `if []` is false
     np.testing.assert_allclose(
         sorted(abs(ar_roots(_ar_kernel_from_roots([1.5, -3.0])))), [1.5, 3.0]
@@ -486,6 +488,22 @@ def test_euclidean_metric(ar3):
         calc_db(ar3, 4, 1.0, 2, metric="L1")
 
 
+def test_powell_optimizer(ar3):
+    """optimizer='Powell' agrees with SLSQP where SLSQP works, and finds the lower minimum where it does not (b = 6 near criticality, NOTICE.md)."""
+    kern = calc_db(ar3, 4, 1.0, 2).kern
+    np.testing.assert_allclose(
+        minimize_klr_b(kern, 2, optimizer="Powell")[0],
+        minimize_klr_b(kern, 2)[0],
+        rtol=1e-8,
+    )
+    near_critical = np.r_[1 - 1e-3, np.zeros(4)]
+    db_slsqp = minimize_klr_b(near_critical, 6)[0]
+    db_powell, cm, exit_flag = minimize_klr_b(near_critical, 6, optimizer="Powell")
+    assert exit_flag == 0 and db_powell < 0.9 * db_slsqp  # SLSQP stops ~40% above
+    with pytest.raises(ValueError):
+        minimize_klr_b(kern, 2, optimizer="BFGS")
+
+
 def test_minimize_klr_b_closest_model(ar3):
     kern = calc_db(ar3, 4, 1.0, 2).kern
     db, cm, ex = minimize_klr_b(kern, 2)
@@ -519,7 +537,7 @@ def _histc_series(st, t1, t2, dt):
 def test_ephys_tutorial_values(matlab_binning):
     """d2 +- sddb on the real data vs the values printed in the original tutorial.
 
-    matlab_binning=True: with MATLAB's exact series (incl. histc's extra value) the printed digits are reproduced exactly. matlab_binning=False: our default binning (CHANGED[5]) moves d2 by at most 0.07% (rtol 1e-3; error bars are 1-2% of d2).
+    matlab_binning=True: with MATLAB's exact series (incl. histc's extra value) the printed digits are reproduced exactly. matlab_binning=False: our default binning (last bin dropped) moves d2 by at most 0.07% (rtol 1e-3; error bars are 1-2% of d2).
     """
     d = sio.loadmat(YMV15_MAT, squeeze_me=True)
     st, dt = d["st"], 0.04
