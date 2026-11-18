@@ -3,6 +3,9 @@
 
 # Done
 
+- fuck it, just put everything under CC BY-NC. that way the license puzzle has an end!
+  - (Claude, 2026-11-18) LICENSE is now CC BY-NC 4.0 (full text, with a pointer to the prox_crit attribution); README, NOTICE.md and docstrings updated. env_startup.ipynb still defaults to MIT for new projects (untouched).
+
 - I discussed with a chatbot. My question: "I have the issue that the analysis functions require fitting and simulation of ar models. therefore in anal I have defined run_ar, mle_ar, and yw_ar. but I also want to have an ar model script. to just simulate and run ar models irrespectively. I don't want to write redundant code or copy. but the models should also not be empty. how do I deal with this? do I just write an innit in models/AR, where I import from analysis". its response: "Simulation & Dynamics live in src/models/.\n Fitting & Estimation live in src/analysis/, and they import from src/models. \n This keeps src/models fully substantive, prevents code duplication, and maintains a clean, acyclic dependency tree."
   - implement this. I don't know if "run_ar" is even called in the ar pipeline. is it? find out and ask me before acting.
   - (Claude, 2026-11-18) run_ar is NOT called in the calc_db pipeline; only the demo notebooks and tests use it. Moved to src/models/autoregression/autoregression_model.py; prox_crit re-exports it.
