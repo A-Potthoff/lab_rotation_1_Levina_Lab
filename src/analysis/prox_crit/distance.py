@@ -81,6 +81,7 @@ def calc_db(
         Named tuple (db, sddb, kern, sigma, H, kernc, exit_status).
     """
     exit_status = 0
+    # normalize data structure to be a list of 1D float arrays
     x = as_segments(x)
 
     # z-score with the pooled mean and std of all segments. Centering is essential: the AR model has no intercept, and an uncentered series (e.g. counts around 20) could only be fitted with kernel weights summing to ~1, which is the criticality condition. Scaling gives unit variance, which yw_ar assumes; d_b itself is scale-invariant. ddof=1: MATLAB's std divides by N-1.
@@ -155,6 +156,10 @@ def minimize_klr_b(kern, b):
     """Minimize the KL divergence rate from ``kern`` over the critical manifold M_b.
 
     Within this function and the functions it calls, kernels on M_b are represented by their reduced kernel (first n - b/2 entries): ``beta_lift`` completes a reduced kernel to the full kernel, ``beta_project`` truncates a full kernel to the reduced one.
+    Why reduced kernel:
+    the kernel is constrained to M_b, so the last h = b/2 entries are determined by the first dof = n - h entries. The reduced kernel is the free-to-vary part of the kernel, over which we optimize; the rest follows from the constraints (beta_lift).
+    If φ is exactly on the manifold, then lift(project(φ)) = φ, so they are inverses.
+    By this construction, the optimizer never has to enforce membership in M_b (beta_lift guarantees it); only the stability constraint remains.
 
     Parameters
     ----------
@@ -175,7 +180,7 @@ def minimize_klr_b(kern, b):
     kern = np.asarray(kern, dtype=float).ravel()
     exit_flag = 0
     closest_model = {}
-    half = half_order(b)
+    half = half_order(b)  # b/2, raises if b is odd
 
     if len(kern) < half:
         exit_flag = 1

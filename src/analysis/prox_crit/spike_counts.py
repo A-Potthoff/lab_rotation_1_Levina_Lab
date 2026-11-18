@@ -9,6 +9,15 @@ import numpy as np
 def matlab_colon(a, d, b):
     """MATLAB's floating-point colon operator ``a:d:b`` (for d > 0), bit for bit.
 
+    Parameters
+    ----------
+    a : float
+        Start of the range.
+    d : float
+        Step size.
+    b : float
+        End of the range.
+
     Why not ``np.arange(a, b + d/2, d)``? It gives the same edges up to ~1e-12, but here those last digits matter: spike times lie on a 1/20000 s sampling grid and bin edges t1 + k*delta_t often lie on the same grid, so many spikes sit *exactly* on an edge, and the rounding of the edge decides their bin. With np.arange, ~0.5% of the bins of the demo session differ from MATLAB by one spike (d2 changes in the 4th digit). This replica keeps the counts identical to MATLAB.
 
     MATLAB's algorithm (published by MathWorks as colonop.m): choose the number of steps n with a small tolerance, then fill the vector symmetrically, ``a + k*d`` from the left and ``last - k*d`` from the right.
@@ -35,6 +44,17 @@ def matlab_colon(a, d, b):
 def get_spike_counts(st, t1, t2, delta_t):
     """Spike-count time series: number of spikes ``st`` in consecutive bins of width delta_t.
 
+    Parameters
+    ----------
+    st : array_like
+        Spike times (timestamps of action potentials), same unit as t1, t2, delta_t (eg seconds).
+    t1 : float
+        Start time of the analysis window.
+    t2 : float
+        End time of the analysis window.
+    delta_t : float
+        Bin width for discretization.
+
     Bin edges e_1 < ... < e_N are MATLAB's ``t1:delta_t:t2``; the N-1 bins are half-open, count_k = #{e_k <= st < e_{k+1}}. Spikes outside [e_1, e_N) are ignored.
 
     CHANGED[5]: MATLAB's ``histc`` returns one more value, count_N = #{st == e_N}, which is almost always 0. That spurious trailing sample is dropped here. Effect on the demo's d2 values: at most 0.07% (WAKE 1.0092 -> 1.0097, error bar 0.016).
@@ -42,13 +62,15 @@ def get_spike_counts(st, t1, t2, delta_t):
     Returns
     -------
     x : (N-1,) float array
+        Spike counts per bin, N = number of bin edges.
     """
     edges = matlab_colon(t1, delta_t, t2)
     if len(edges) < 2:
         return np.zeros(0)
     st = np.asarray(st, dtype=float).ravel()
+    # Keep only spikes falling within the valid binning range [e_1, e_N)
     spikes = st[(st >= edges[0]) & (st < edges[-1])]
-    bin_index = (
-        np.searchsorted(edges, spikes, side="right") - 1
-    )  # edges[k] <= spike < edges[k+1]
+
+    # bin index of each spike; side="right" ensures edges[k] <= spike < edges[k+1]
+    bin_index = np.searchsorted(edges, spikes, side="right") - 1
     return np.bincount(bin_index, minlength=len(edges) - 1).astype(float)

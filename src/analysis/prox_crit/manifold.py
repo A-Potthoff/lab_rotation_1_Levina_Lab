@@ -35,12 +35,17 @@ def ar_roots(kern):
 
     np.roots expects coefficients from the highest power down: (kern_n, ..., kern_1, -1), i.e. the coefficients of -P(z), which has the same roots.
     """
+    # np.r_ concatenates along the first axis.
+    # kernel entries enter P with a negative sign; -P(z) = -1 + sum_k kern_k z^k has the same roots, so we pass its coefficients.
     kern = np.asarray(kern, dtype=float).ravel()
     return np.roots(np.r_[kern[::-1], -1.0])
 
 
 def explosive(kern):
     """True if the AR model with history kernel ``kern`` is explosive (a root of P inside the unit circle).
+
+    Take an AR model, then its kernel phi defines a polynomial P(z) = 1 - sum_k phi_k z^k on the complex plane. The model is stationary/stable iff all roots of P lie outside the unit circle. Therefore, the model is explosive iff at least one root lies inside the unit circle.
+    Eg. AR(1) with phi_1 = 0.5 has P(z) = 1 - 0.5 z, root at z = 2 outside the unit circle, so it is stable. AR(1) with phi_1 = 1.5 has P(z) = 1 - 1.5 z, root at z = 2/3 inside the unit circle, so it is explosive.
 
     FLAG[2]: tolerance 1e-2, so a model with a root at |z| in [0.99, 1) counts as NOT explosive.
     """
@@ -61,10 +66,10 @@ def beta_project(phic, beta):
     if half > n:
         warnings.warn("ERROR (beta_project): beta is too large ")
         return np.array([])
-    return phic[: n - half]
+    return phic[: n - half]  # first n-h entries, ex: (2.5, -2, 0.5) -> (2.5)
 
 
-def beta_lift(phic_reduc, beta):
+def beta_lift(phic_reduc, beta):  # ex: phic_reduc = (2.5), beta = 4
     """Complete a reduced kernel to the unique full kernel on M_beta.
 
     The last beta/2 entries ("tail") solve the linear constraints of M_beta (Sooter et al.), with k the true lag number::
@@ -75,26 +80,27 @@ def beta_lift(phic_reduc, beta):
     Parameters
     ----------
     phic_reduc : (n - beta/2,) array
-        First n - beta/2 kernel coefficients.
+        First n - beta/2 kernel coefficients (mostly those fitted by the optimizer).
     beta : int
-        Order of the critical manifold.
+        Target order of the critical manifold.
 
     Returns
     -------
     phic : (n,) array
     """
     phic_reduc = np.asarray(phic_reduc, dtype=float).ravel()
-    half = half_order(beta)
-    n = len(phic_reduc) + half  # model order
+    half = half_order(beta)  # ex: beta = 4 -> half = 2
+    n = len(phic_reduc) + half  # model order (ex: 3)
 
-    lags_reduc = np.arange(1, len(phic_reduc) + 1, dtype=float)  # lags 1 .. n-beta/2
-    lags_tail = np.arange(n - half + 1, n + 1, dtype=float)  # lags n-beta/2+1 .. n
+    # lags [1 .. n-beta/2] (ex: [1]) and [n-beta/2+1 .. n] (ex: [2, 3])
+    lags_reduc = np.arange(1, len(phic_reduc) + 1, dtype=float)
+    lags_tail = np.arange(n - half + 1, n + 1, dtype=float)
 
     A = np.zeros((half, half))
     rhs = np.zeros(
         half
     )  # named `b` in the original, which clashes with the manifold order b
-    for i in range(half):
+    for i in range(half):  # one row per constraint (ex: 2 rows)
         A[i, :] = lags_tail**i
         if i == 0:
             rhs[i] = 1 - np.sum(phic_reduc)
@@ -106,6 +112,8 @@ def beta_lift(phic_reduc, beta):
 
 def con(kernc, b):
     """Constraint of the optimization (fmincon convention: feasible if c <= 0).
+
+    Checks whether the roots of the lifted kernel's polynomial lie outside the unit circle (stationary); a root inside makes c positive (infeasible).
 
     Returns
     -------
