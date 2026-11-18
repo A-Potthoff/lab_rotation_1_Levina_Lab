@@ -241,9 +241,12 @@ def minimize_klr_b(kern, b):
         closest_model["kernc"] = beta_lift(result.x, b)
         closest_model["sigmac"] = get_sigmac(kern, closest_model["kernc"])
 
+        # The lifted kernel is always on M_b (critical by construction). This check applies the same 0.99 rule as the constraint, so it only fires if SLSQP ended outside its fence, ie left the non-explosive part of M_b (possible within SLSQP's feasibility tolerance, or if it hit maxiter).
         if explosive(closest_model["kernc"]):
             exit_flag = 1
             db = np.nan
-            warnings.warn("ERROR: drifted off of critical manifold.")
+            warnings.warn(
+                "ERROR: closest critical model is explosive (optimizer left the non-explosive part of M_b)."
+            )
 
     return db, closest_model, exit_flag
