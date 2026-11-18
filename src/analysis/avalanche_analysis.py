@@ -107,7 +107,7 @@ def avalanches_sts_er(W, n_avalanches, max_steps=10**5, seed=None, p_max=1.0, re
     """
     Separation of timescales on a sparse network: seed one random neuron, run until silent.
     Event-driven: with h = 0 only targets of active neurons can fire, so each step costs
-    O(active * K_out) instead of O(N). Exact for the PIF update rule.
+    O(active * K_out) instead of O(N). Exact for the BN update rule.
     Returns sizes, durations, truncated.
     """
     rng = np.random.default_rng(seed)

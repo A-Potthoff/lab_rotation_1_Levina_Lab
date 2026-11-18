@@ -7,7 +7,7 @@ We've set out to work with, and analyse the measure of distance to criticality, 
 
 ### Code
 - `src/config/`: Code for loading and interpreting configurations, e.g. project paths (`paths.py`).
-- `src/models/`: Model implementations and dynamics, e.g. the probabilistic integrate-and-fire branching network (`branching_model/`) and autoregressive models (`autoregression/`).
+- `src/models/`: Model implementations and dynamics, e.g. the branching network (`branching_model/`) and autoregressive models (`autoregression/`).
 - `src/analysis/`: Reusable analysis functions for models, simulations, and data, e.g. avalanches, autocorrelation timescales, and `prox_crit/`.
 - `src/utils/`: General-purpose helpers, e.g. plotting and data loading.
 - `src/external/`: Externally sourced or copied code; preserve attribution, license terms, and relevant original documentation.

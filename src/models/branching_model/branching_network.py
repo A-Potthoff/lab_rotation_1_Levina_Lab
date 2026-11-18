@@ -1,5 +1,5 @@
 """
-Memoryless probabilistic integrate-and-fire (PIF), version A, dt = 1.
+Memoryless branching network (BN), version A, dt = 1.
 
     P(s_i(t+1) = 1 | s(t)) = min(p_max, lam + (1 - lam) * sum_j w_ij s_j(t)),   lam = 1 - exp(-h)
 
@@ -29,7 +29,7 @@ def lam_of_h(h):
 
 def stationary_rate_aa(sigma, h, refractory=False, p_max=1.0):
     """
-    Stationary firing rate a* = E[A]/N of the all-to-all PIF.
+    Stationary firing rate a* = E[A]/N of the all-to-all BN.
     Non-refractory: exact,       a* = lam / (1 - sigma_eff), as long as p never clips at p_max.
     Refractory:     mean-field,  positive root of  sigma_eff a^2 + (1 + lam - sigma_eff) a - lam = 0,
                     i.e. the fixed point of a = (1 - a)(lam + sigma_eff a).
@@ -72,7 +72,7 @@ def stationary_var_aa(N, sigma, h):
 
 def params_for_distance(rate: float, distance: float):
     """
-    (sigma, h) of the all-to-all, non-refractory PIF for a target stationary rate a* = E[A]/N and distance to criticality epsilon = 1 - sigma_eff.
+    (sigma, h) of the all-to-all, non-refractory BN for a target stationary rate a* = E[A]/N and distance to criticality epsilon = 1 - sigma_eff.
 
     Inverts a* = lam / epsilon  ->  lam = a * epsilon,  sigma = (1 - epsilon) / (1 - lam) <= 1, so p never clips.
     """
@@ -81,7 +81,7 @@ def params_for_distance(rate: float, distance: float):
 
 def distance_to_criticality(sigma, h):
     """
-    Distance to criticality epsilon = 1 - sigma_eff of the all-to-all, non-refractory PIF.
+    Distance to criticality epsilon = 1 - sigma_eff of the all-to-all, non-refractory BN.
     """
     lam = lam_of_h(h)
     return 1 - (1 - lam) * sigma
@@ -220,7 +220,7 @@ def _raster_from_counts(A, N, rng, refractory, init_active=None, prepend_init=Fa
 
 
 # --------------------------------------------------------------------------- all-to-all
-def pif_aa_population(
+def bn_aa_population(
     N,
     sigma,
     T,
@@ -236,7 +236,7 @@ def pif_aa_population(
     stop_if_silent=None,
 ):
     """
-    Exact population-level simulation of the all-to-all PIF: A_{t+1} ~ Binomial(n_avail, p(A_t)).
+    Exact population-level simulation of the all-to-all BN: A_{t+1} ~ Binomial(n_avail, p(A_t)).
 
     A0 : "stationary"          -> start at the (rounded) stationary mean, then discard burn_in steps
          int                   -> start with that many active neurons
@@ -372,10 +372,10 @@ def pif_aa_population(
 #     return mu
 
 
-# def pif_er(W, T, h, R=1, s0="stationary", seed=None, p_max=1.0, refractory=False,
+# def bn_er(W, T, h, R=1, s0="stationary", seed=None, p_max=1.0, refractory=False,
 #            return_raster=False, burn_in="auto"):
 #     """
-#     Neuron-level PIF on a sparse network W (CSR). Cost per step: O(nnz(W) * R).
+#     Neuron-level BN on a sparse network W (CSR). Cost per step: O(nnz(W) * R).
 
 #     s0 : "stationary" -> neurons drawn Bernoulli(mu*_i), then burn_in steps discarded
 #          array (N,) or (R, N) -> precise 0/1 initial state
