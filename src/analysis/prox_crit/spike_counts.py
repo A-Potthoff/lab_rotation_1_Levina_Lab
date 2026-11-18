@@ -6,7 +6,7 @@ NOT OWN WORK. Python translation of the auxiliary function ``get_spike_counts`` 
 import numpy as np
 
 
-def matlab_colon(a, d, b):
+def matlab_range(a, d, b):
     """MATLAB's floating-point colon operator ``a:d:b`` (for d > 0), bit for bit.
 
     Parameters
@@ -64,7 +64,7 @@ def get_spike_counts(st, t1, t2, delta_t):
     x : (N-1,) float array
         Spike counts per bin, N = number of bin edges.
     """
-    edges = matlab_colon(t1, delta_t, t2)
+    edges = matlab_range(t1, delta_t, t2)
     if len(edges) < 2:
         return np.zeros(0)
     st = np.asarray(st, dtype=float).ravel()

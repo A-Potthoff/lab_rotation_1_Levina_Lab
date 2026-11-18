@@ -20,7 +20,7 @@ This package is a **Python translation** of the MATLAB toolkit `prox_crit_toolki
 | `calc_db.m: QC_plot` | `plotting.qc_plot` |
 | `calc_dbv1.m: calc_dbv1` | `manifold.calc_dbv1` |
 | `yw_ar.m`, `mle_ar.m` | `ar.yw_ar`, `ar.mle_ar` |
-| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `ar.run_ar`, `spike_counts.get_spike_counts` (plus `spike_counts.matlab_colon`) |
+| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `ar.run_ar`, `spike_counts.get_spike_counts` (plus `spike_counts.matlab_range`) |
 | `demo.mlx` | `notebooks/proxy_crit_Sooter/prox_crit_demo.ipynb` |
 | `demo_crit_db.m` | `notebooks/proxy_crit_Sooter/prox_crit_demo_crit_db.ipynb` |
 | `dbopt.with_QC` | `with_qc` |

@@ -41,7 +41,7 @@ from .manifold import (
     explosive,
     half_order,
 )
-from .spike_counts import get_spike_counts, matlab_colon
+from .spike_counts import get_spike_counts, matlab_range
 
 __all__ = [
     "calc_db",
@@ -63,5 +63,5 @@ __all__ = [
     "get_sigma_ratio",
     "get_klr_b",
     "get_spike_counts",
-    "matlab_colon",
+    "matlab_range",
 ]

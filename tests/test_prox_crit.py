@@ -32,7 +32,7 @@ from src.analysis.prox_crit import (
     get_klr_b,
     get_sigma_ratio,
     get_spike_counts,
-    matlab_colon,
+    matlab_range,
     minimize_klr_b,
     mle_ar,
     run_ar,
@@ -186,7 +186,7 @@ def test_spike_counts_match_matlab_histc(ref):
     }
     for name, (t1, t2) in windows.items():
         np.testing.assert_array_equal(
-            matlab_colon(t1, 0.04, t2), np.ravel(out["bins_" + name])
+            matlab_range(t1, 0.04, t2), np.ravel(out["bins_" + name])
         )
         np.testing.assert_array_equal(
             get_spike_counts(st, t1, t2, 0.04), np.ravel(out["counts_" + name])[:-1]
@@ -420,14 +420,14 @@ def test_explosive_threshold():
     )
 
 
-def test_matlab_colon():
+def test_matlab_range():
     # MATLAB fills symmetrically: left half a + k*d, right half last - k*d,
     # so 0:0.1:0.3 is [0, 0.1, 0.3-0.1, 0.3] (bit-level parity with MATLAB on
     # real data is checked in test_spike_counts_match_matlab_histc).
-    np.testing.assert_array_equal(matlab_colon(0, 0.1, 0.3), [0, 0.1, 0.3 - 0.1, 0.3])
-    assert matlab_colon(0, 0.1, 0.3)[-1] == 0.3  # end point snapped, arange is not
-    assert len(matlab_colon(0, 0.04, 1.0)) == 26
-    assert len(matlab_colon(1, 1, 0)) == 0
+    np.testing.assert_array_equal(matlab_range(0, 0.1, 0.3), [0, 0.1, 0.3 - 0.1, 0.3])
+    assert matlab_range(0, 0.1, 0.3)[-1] == 0.3  # end point snapped, arange is not
+    assert len(matlab_range(0, 0.04, 1.0)) == 26
+    assert len(matlab_range(1, 1, 0)) == 0
 
 
 def test_spike_count_bins_are_half_open():
@@ -488,7 +488,7 @@ def test_speed(ar3):
 # --------------------------------------------------------------------------- #
 def _histc_series(st, t1, t2, dt):
     """MATLAB-style series: our counts plus histc's extra last value #{st == last edge}."""
-    last_edge = matlab_colon(t1, dt, t2)[-1]
+    last_edge = matlab_range(t1, dt, t2)[-1]
     return np.r_[get_spike_counts(st, t1, t2, dt), np.sum(st == last_edge)]
 
 
