@@ -19,7 +19,7 @@ $$
 \sum_k \phi_k = 1,\qquad \sum_k k^j\phi_k = 0\quad (j=1,\dots,b/2-1)
 $$
 
-Basis points used by `calc_dbv1`: $(1-z)^k$ with $k=b/2,\dots,n$, i.e. $\phi_t=\binom{k}{t}(-1)^{t+1}$.
+Basis points used by `calc_db_euclidean`: $(1-z)^k$ with $k=b/2,\dots,n$, i.e. $\phi_t=\binom{k}{t}(-1)^{t+1}$.
 
 ### Spectra and KL-divergence rate
 **Context:** $d_b$ is the smallest KL rate from the fitted model to any model in $M_b$.

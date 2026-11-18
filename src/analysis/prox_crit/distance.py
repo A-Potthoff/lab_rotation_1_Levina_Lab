@@ -21,7 +21,14 @@ from scipy.optimize import minimize
 
 from .ar import as_segments, mle_ar, yw_ar
 from .kl_rate import get_klr_b, get_sigma_ratio
-from .manifold import beta_lift, beta_project, calc_dbv1, con, explosive, half_order
+from .manifold import (
+    beta_lift,
+    beta_project,
+    calc_db_euclidean,
+    con,
+    explosive,
+    half_order,
+)
 
 # Optimizer. The original uses MATLAB's fmincon with
 #   optimoptions('fmincon', 'Display','none', 'Algorithm','sqp', 'ConstraintTolerance',0.01, 'MaxFunctionEvaluations',10000, 'StepTolerance',1e-15)
@@ -198,7 +205,7 @@ def minimize_klr_b(kern, b):
             return get_klr_b(kern, kernc_reduced, b, "integral")
 
         # Start at the L2-closest point of M_b.
-        _, kernc_l2 = calc_dbv1(kern, b)
+        _, kernc_l2 = calc_db_euclidean(kern, b)
         kernc_start = beta_project(kernc_l2, b)
 
         # CHANGED[2]: the original's constraint is c <= 0 with fmincon's ConstraintTolerance 0.01. SLSQP has no tolerance option and treats its inequality fun(x) >= 0 as hard. Since c ~ 0 with round-off noise of either sign on M_b by construction (FLAG[1]), a hard c <= 0 can be infeasible; the constraint is therefore passed as 0.01 - c >= 0.

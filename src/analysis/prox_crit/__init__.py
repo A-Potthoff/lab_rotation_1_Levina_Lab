@@ -17,7 +17,7 @@ Glossary of abbreviations used throughout:
     sigma        noise std of the fitted model
     sigma_ratio  noise std of the critical model relative to sigma
     klr          KL-divergence rate
-    dbv1         "version 1" distance: plain L2 distance to M_b (starting point)
+    db_euclidean L2 (Euclidean) distance of kern to M_b ("dbv1" in the original); starting point of the KL minimization
     yw / mle     Yule-Walker / maximum-likelihood AR fit
     H            Hessian of the log-likelihood (for error bars)
     con          constraint function of the optimizer
@@ -36,7 +36,7 @@ from .manifold import (
     ar_roots,
     beta_lift,
     beta_project,
-    calc_dbv1,
+    calc_db_euclidean,
     con,
     explosive,
     half_order,
@@ -53,7 +53,7 @@ __all__ = [
     "run_ar",
     "ar_roots",
     "half_order",
-    "calc_dbv1",
+    "calc_db_euclidean",
     "beta_lift",
     "beta_project",
     "con",

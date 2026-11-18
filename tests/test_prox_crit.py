@@ -26,7 +26,7 @@ from src.analysis.prox_crit import (
     beta_lift,
     beta_project,
     calc_db,
-    calc_dbv1,
+    calc_db_euclidean,
     explosive,
     get_kernw,
     get_klr_b,
@@ -94,12 +94,12 @@ def test_ar_fits_match_matlab(ref):
             np.testing.assert_allclose(r.H, out["H"][i], rtol=1e-12)
 
 
-def test_calc_dbv1_matches_matlab(ref):
+def test_calc_db_euclidean_matches_matlab(ref):
     K = ref["inp"]["dbv1_kerns"]
     for i, row in enumerate(K):
         kern, b = row[2 : 2 + int(row[0])], int(row[1])
-        dbv1, kernc = calc_dbv1(kern, b)
-        np.testing.assert_allclose(dbv1, ref["out"]["dbv1"][i], rtol=1e-12)
+        db_euclidean, kernc = calc_db_euclidean(kern, b)
+        np.testing.assert_allclose(db_euclidean, ref["out"]["dbv1"][i], rtol=1e-12)
         np.testing.assert_allclose(
             kernc, np.ravel(ref["out"]["dbv1_kernc"][i]), rtol=0, atol=1e-11
         )
@@ -240,10 +240,10 @@ def test_beta_lift_constraints_and_roots(b):
 
 
 @pytest.mark.parametrize("b", [2, 4, 6])
-def test_calc_dbv1_is_orthogonal_projection(b):
+def test_calc_db_euclidean_is_orthogonal_projection(b):
     rng = np.random.default_rng(seed=10 + b)
     kern = rng.normal(scale=0.3, size=7)
-    dbv1, kernc = calc_dbv1(kern, b)
+    db_euclidean, kernc = calc_db_euclidean(kern, b)
     lags = np.arange(1, 8)
     np.testing.assert_allclose(kernc.sum(), 1, atol=1e-12)
     for j in range(1, b // 2):
@@ -255,9 +255,9 @@ def test_calc_dbv1_is_orthogonal_projection(b):
         e[k] += 1.0
         direction = beta_lift(e, b) - kernc
         np.testing.assert_allclose((kern - kernc) @ direction, 0, atol=1e-10)
-    np.testing.assert_allclose(dbv1, np.linalg.norm(kern - kernc), rtol=1e-14)
+    np.testing.assert_allclose(db_euclidean, np.linalg.norm(kern - kernc), rtol=1e-14)
     # a kernel already on M_b is its own projection
-    np.testing.assert_allclose(calc_dbv1(kernc, b)[1], kernc, atol=1e-12)
+    np.testing.assert_allclose(calc_db_euclidean(kernc, b)[1], kernc, atol=1e-12)
 
 
 def test_get_kernw_and_spectrum():
@@ -472,7 +472,9 @@ def test_minimize_klr_b_closest_model(ar3):
     np.testing.assert_allclose(
         cm["sigma_ratio"], get_sigma_ratio(kern, cm["kernc"]), rtol=1e-14
     )
-    assert db <= get_klr_b(kern, beta_project(calc_dbv1(kern, 2)[1], 2), 2, "integral")
+    assert db <= get_klr_b(
+        kern, beta_project(calc_db_euclidean(kern, 2)[1], 2), 2, "integral"
+    )
 
 
 def test_speed(ar3):

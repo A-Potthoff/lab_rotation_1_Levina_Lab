@@ -54,7 +54,7 @@ Not changes, but done for speed or idiom: vectorized loops, a plain-Python Horne
 
 | Quantity | Agreement |
 |---|---|
-| AR fits (kern, sigma, H), `calc_dbv1` | ≤ 3e-11 relative (linear algebra round-off) |
+| AR fits (kern, sigma, H), `calc_db_euclidean` | ≤ 3e-11 relative (linear algebra round-off) |
 | Spike-count bins and counts on the real data | **bit-identical** (apart from the dropped last value, CHANGED 5) |
 | d2 (b = 2) | ≤ 2e-7 relative; the residual is MATLAB `integral`'s own error (Python matches mpmath to 1e-10) |
 | sddb (b = 2) | ≤ 5e-9 relative |

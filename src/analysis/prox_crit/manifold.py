@@ -13,7 +13,7 @@ Background (for recognition, no derivation):
   M_b is therefore an affine subspace of dimension n - b/2.
 * Reduced kernel: a point on M_b is parameterized by its first n - b/2 entries; the last b/2 entries follow from the constraints (``beta_lift``). ``beta_project`` goes the other way (it just truncates).
 
-Abbreviations: b / beta = type (order) of criticality, kernc / phic = kernel of a critical model, dbv1 = "version 1" of the distance (plain L2 distance), con = constraint function of the optimizer.
+Abbreviations: b / beta = type (order) of criticality, kernc / phic = kernel of a critical model, db_euclidean = plain L2 distance to M_b (``calc_dbv1``, "version 1" of the distance, in the original), con = constraint function of the optimizer.
 """
 
 import warnings
@@ -130,7 +130,7 @@ def con(kernc, b):
     return c, ceq
 
 
-def calc_dbv1(kern, b):
+def calc_db_euclidean(kern, b):
     """Closest kernel on M_b in L2 (Euclidean) distance; the starting point of the KL minimization.
 
     M_b is the affine hull of the kernels of the critical models (1 - L)^k x_t = eps_t, k = b/2 .. n (L = lag operator). Their polynomial P(z) = (1 - z)^k has a k-fold root at z = 1 (k >= b/2), and by the binomial theorem their kernels are::
@@ -141,7 +141,7 @@ def calc_dbv1(kern, b):
 
     Returns
     -------
-    dbv1 : float
+    db_euclidean : float
         L2 distance ||kern - kernc||.
     kernc : (n,) array
         Closest kernel on M_b.
@@ -166,5 +166,5 @@ def calc_dbv1(kern, b):
     v = solve_triangular(R, Q.T @ target)
 
     kernc = points[:, 0] + directions @ v
-    dbv1 = np.sqrt(np.sum((kern - kernc) ** 2))
-    return dbv1, kernc
+    db_euclidean = np.sqrt(np.sum((kern - kernc) ** 2))
+    return db_euclidean, kernc
