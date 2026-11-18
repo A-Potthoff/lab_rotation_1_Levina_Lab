@@ -1,6 +1,6 @@
 """Autoregressive (AR) models: fitting them to (possibly segmented) time series. Simulation (``run_ar``) lives in src/models/autoregression/autoregression_model.py.
 
-NOT OWN WORK. Python translation of ``yw_ar.m`` and ``mle_ar.m`` from prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). See NOTICE.md.
+NOT OWN WORK. Python translation of ``yw_ar.m`` and ``mle_ar.m`` from prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Both estimators deviate from the original where it is not exact for short segments (see the docstrings and NOTICE.md).
 
 AR(n) model, the object fitted everywhere in this package::
 
@@ -33,12 +33,16 @@ def as_segments(x):
 def yw_ar(x, order):
     """Fit an AR model with the Yule-Walker method (method of moments).
 
-    Solves the Yule-Walker equations ``Gamma @ kern = gamma``: gamma[lag-1] is the sample autocovariance at lag 1..order, Gamma the Toeplitz matrix Gamma[i, j] = gamma(|i-j|) with gamma(0) = 1. Then sigma^2 = 1 - gamma . kern (variance not explained by the history).
+    Solves the Yule-Walker equations ``Gamma @ kern = gamma``: gamma[lag-1] is the sample autocovariance at lag 1..order, Gamma the Toeplitz matrix Gamma[i, j] = gamma(|i-j|). Then sigma^2 = gamma(0) - gamma . kern (variance not explained by the history).
+
+    Autocovariance: gamma(lag) = mean of x_t x_{t+lag} over all pairs within segments, ie the sum divided by the number of pairs (N - lag), for every lag including 0. Unbiased for each lag, also when pooling many short segments. Deviation from the original, which fixes gamma(0) = 1 instead of estimating it: after calc_db's z-scoring (std with N - 1) the data's gamma(0) is (N - 1)/N, so the effect is O(1/N), but this way all entries are estimated consistently and x need not have unit variance.
+
+    Not chosen: dividing every lag by N (the "biased" estimator) makes Gamma positive definite, which guarantees a stable fit and a real sigma. But each segment then contributes (L - lag)/L of its true covariance (L = segment length), which, pooled over short segments, pulls the fit away from criticality (AR(1) 0.95 fitted as 0.86 from 10-sample windows). With N - lag, Gamma can be indefinite when the order is a sizeable fraction of the segment length (eg order 5, segments of 10-20 samples); the fit can then be explosive (calc_db returns NaN) or sigma complex.
 
     Parameters
     ----------
     x : array or list of arrays
-        Time series or list of segments. Must already be z-scored (mean 0, variance 1), as done in ``calc_db``; the diagonal of Gamma is set to 1 on that assumption.
+        Time series or list of segments. Must be centered (mean 0, as after the z-scoring in ``calc_db``); the variance can be anything (gamma(0) is estimated).
     order : int
         AR model order n.
 
@@ -47,14 +51,14 @@ def yw_ar(x, order):
     kern : (order,) array
         History kernel.
     sigma : float
-        Noise standard deviation (complex if 1 - gamma.kern < 0, see NOTICE.md, known issues).
+        Noise standard deviation, in units of x (complex if gamma(0) - gamma.kern < 0, see NOTICE.md, known issues).
     """
     # The original requires a MATLAB cell array here (unlike mle_ar); both now accept the same inputs.
     x = as_segments(x)
 
-    # Autocovariance: average of x_k * x_{k+lag} over all pairs, pooled over all segments. Pairs never straddle a segment border.
-    gamma = np.zeros(order)
-    for lag in range(1, order + 1):
+    # gamma[lag] for lag = 0..order, pooled over all segments. Pairs never straddle a segment border.
+    gamma = np.zeros(order + 1)
+    for lag in range(order + 1):
         total = 0.0
         counter = 0  # number of pairs (x_k, x_{k+lag}) used
         for seg in x:
@@ -62,25 +66,20 @@ def yw_ar(x, order):
             if n_pairs > 0:
                 total += np.dot(seg[:n_pairs], seg[lag:])
                 counter += n_pairs
-        # Divides by the number of pairs (N - lag), not by N. Unlike the 1/N estimator, this does not guarantee a positive-definite Gamma (stable fit); the difference is O(order / N).
-        gamma[lag - 1] = np.float64(total) / counter
+        gamma[lag] = total / counter
 
     # Toeplitz matrix of autocovariances, Gamma[i, j] = gamma(|i - j|).
-    # Diagonal fixed to 1 (unit variance). calc_db z-scores with the N-1 std, so the data's actual lag-0 moment is (N-1)/N (negligible).
     idx = np.arange(order)
-    lag_matrix = np.abs(idx[:, None] - idx[None, :])
-    Gamma = np.ones((order, order))
-    off_diagonal = lag_matrix > 0
-    Gamma[off_diagonal] = gamma[lag_matrix[off_diagonal] - 1]
+    Gamma = gamma[np.abs(idx[:, None] - idx[None, :])]
 
-    kern = np.linalg.solve(Gamma, gamma)
+    kern = np.linalg.solve(Gamma, gamma[1:])
     # Known issue (NOTICE.md): a negative argument gives a complex sigma, as MATLAB's sqrt does (np.sqrt would give nan).
-    sigma = np.emath.sqrt(1 - gamma @ kern)
+    sigma = np.emath.sqrt(gamma[0] - gamma[1:] @ kern)
     return kern, sigma
 
 
 def mle_ar(x, order):
-    """Fit an AR model by (conditional) maximum likelihood, which for Gaussian noise is least squares.
+    """Fit an AR model by conditional maximum likelihood, which for Gaussian noise is least squares.
 
     Regression ``Y = X @ kern + noise``; row t of the design matrix X holds the history (x_{t-1}, ..., x_{t-order}) of sample Y_t::
 
@@ -91,10 +90,12 @@ def mle_ar(x, order):
 
     -H^-1 approximates the covariance of the kernel estimate; calc_db uses it for error bars.
 
+    Conditional likelihood: the first ``order`` samples of each segment are conditioned on (they only enter as history), so T = sum over segments of (length - order). Deviation from the original, which also uses those first samples as regression targets with their missing history set to 0. That treats x = 0 before each segment start as observed, which biases kern towards 0 by O(order / segment length): negligible for long segments, not for short windows.
+
     Parameters
     ----------
     x : array or list of arrays
-        Time series or list of segments (each with its own history).
+        Time series or list of segments (each with its own history). Segments with at most ``order`` samples contribute nothing.
     order : int
         AR model order.
 
@@ -105,19 +106,22 @@ def mle_ar(x, order):
     H : (order, order) array
     """
     x = as_segments(x)
-    T = sum(len(seg) for seg in x)  # total number of samples
 
-    # Design matrix, one block per segment, stacked. Column k-1 holds lag k: X[t, k-1] = seg[t-k].
-    # Every sample is a regression row, also the first `order` samples of each segment; their missing history is filled with zeros (= the mean, after z-scoring), and they count in T. A small bias, O(order / segment length).
-    X_blocks = []
+    # Design matrix, one block per segment, stacked. Column k-1 holds lag k: X[row, k-1] = seg[t-k] for targets t = order..len-1.
+    X_blocks, Y_blocks = [], []
     for seg in x:
-        n = len(seg)
-        X_seg = np.zeros((n, order))
-        for k in range(1, order + 1):
-            X_seg[k:, k - 1] = seg[: max(n - k, 0)]
-        X_blocks.append(X_seg)
+        n_rows = len(seg) - order
+        if n_rows <= 0:
+            continue
+        X_blocks.append(
+            np.column_stack(
+                [seg[order - k : order - k + n_rows] for k in range(1, order + 1)]
+            )
+        )
+        Y_blocks.append(seg[order:])
     X = np.vstack(X_blocks)
-    Y = np.concatenate(x)
+    Y = np.concatenate(Y_blocks)
+    T = len(Y)  # number of regression rows
 
     kern = np.linalg.solve(
         X.T @ X, X.T @ Y

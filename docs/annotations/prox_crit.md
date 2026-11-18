@@ -50,8 +50,8 @@ $$
 Here $H$ is the Hessian of the profile log-likelihood $\ell(\phi)=-\tfrac T2\log\sum r_t^2$, and $\nabla d_b$ is obtained by forward differences.
 
 ### AR fitting
-- Yule–Walker: $\Gamma\phi=\gamma$ and $\sigma^2=1-\gamma^\top\phi$.
-- Maximum likelihood: $\phi=(X^\top X)^{-1}X^\top Y$ and $H_{jk}=T\,(2B_jB_k/A^2-(X^\top X)_{jk}/A)$, with $A=\sum r^2$ and $B=X^\top r$.
+- Yule–Walker: $\Gamma\phi=\gamma$ and $\sigma^2=\gamma_0-\gamma^\top\phi$ (all $\gamma_k$ = mean over pairs; the original fixes $\gamma_0=1$).
+- Maximum likelihood: $\phi=(X^\top X)^{-1}X^\top Y$ and $H_{jk}=T\,(2B_jB_k/A^2-(X^\top X)_{jk}/A)$, with $A=\sum r^2$ and $B=X^\top r$. Conditional likelihood: the first $n$ samples of each segment only serve as history, $T=\sum_\text{segments}(L-n)$ (the original zero-pads them as targets).
 
 **Source:**
 - Sooter et al., *Defining and measuring proximity to criticality*, bioRxiv (2025), doi:10.1101/2025.08.03.668332

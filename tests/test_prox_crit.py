@@ -2,7 +2,10 @@
 
 Three layers:
 1. MATLAB parity: outputs of the ORIGINAL MATLAB code on identical inputs
-   (fixtures from tests/matlab/make_reference.m).
+   (fixtures from tests/matlab/make_reference.m). The AR fits deliberately
+   deviate from the original (exact for short segments, NOTICE.md), so these
+   tests run calc_db with literal translations of the ORIGINAL estimators
+   (_yw_ar_original, _mle_ar_original) patched in.
 2. Independent math checks: the formulas themselves (time-domain vs spectral
    KL rate, manifold constraints, Hessian, literal MATLAB loops, ...).
 3. End-to-end: the values printed in the original tutorial (demo.mlx) for the
@@ -11,10 +14,12 @@ Three layers:
 Run:  python -m pytest tests/test_prox_crit.py -v
 """
 
+import contextlib
 import math
 import time
 import warnings
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -48,6 +53,57 @@ LOG2E = np.log2(np.e)
 
 
 # --------------------------------------------------------------------------- #
+# Literal translations of the ORIGINAL estimators (yw_ar.m, mle_ar.m)
+# --------------------------------------------------------------------------- #
+def _yw_ar_original(x, order):
+    """yw_ar.m: autocovariance divided by the number of pairs (N - lag), gamma(0) fixed to 1."""
+    x = [np.ravel(seg) for seg in (x if isinstance(x, list) else [x])]
+    gamma = np.zeros(order)
+    for lag in range(1, order + 1):
+        counter = 0
+        for seg in x:
+            for k in range(1, len(seg) - lag + 1):
+                gamma[lag - 1] += seg[k - 1] * seg[k + lag - 1]
+                counter += 1
+        gamma[lag - 1] /= counter
+    Gamma = np.ones((order, order))
+    for i in range(1, order + 1):
+        for j in range(i + 1, order + 1):
+            Gamma[i - 1, j - 1] = Gamma[j - 1, i - 1] = gamma[abs(i - j) - 1]
+    kern = np.linalg.solve(Gamma, gamma)
+    return kern, np.emath.sqrt(1 - gamma @ kern)
+
+
+def _mle_ar_original(x, order):
+    """mle_ar.m: every sample is a regression row; missing history (before the segment start) is 0."""
+    x = [np.ravel(seg) for seg in (x if isinstance(x, list) else [x])]
+    rows, Y = [], []
+    for seg in x:
+        for j in range(1, len(seg) + 1):  # MATLAB j = 1..length
+            hist = seg[max(1, j - order) - 1 : j - 1]
+            rows.append(np.r_[hist[::-1], np.zeros(order - len(hist))])
+            Y.append(seg[j - 1])
+    X, Y = np.array(rows), np.array(Y)
+    kern = np.linalg.solve(X.T @ X, X.T @ Y)
+    resid = Y - X @ kern
+    A, B, T = np.sum(resid**2), X.T @ resid, len(Y)
+    H = T * (2 * np.outer(B, B) / A**2 - (X.T @ X) / A)
+    return kern, np.sqrt(np.mean(resid**2)), H
+
+
+@contextlib.contextmanager
+def _original_estimators():
+    """calc_db fits with the original estimators inside this block (for MATLAB parity)."""
+    import src.analysis.prox_crit.distance as distance
+
+    with (
+        mock.patch.object(distance, "yw_ar", _yw_ar_original),
+        mock.patch.object(distance, "mle_ar", _mle_ar_original),
+    ):
+        yield
+
+
+# --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #
 @pytest.fixture(scope="module")
@@ -58,7 +114,7 @@ def ref():
     dsets = [[np.ravel(s) for s in d.ravel()] for d in inp["dsets"].ravel()]
     cases = inp["cases"].astype(int)
     py = []
-    with warnings.catch_warnings():
+    with warnings.catch_warnings(), _original_estimators():
         warnings.simplefilter("ignore")
         for d, order, b, fit, err in cases:
             py.append(
@@ -82,7 +138,7 @@ def _cases(ref, pred):
 # 1. MATLAB parity
 # --------------------------------------------------------------------------- #
 def test_ar_fits_match_matlab(ref):
-    """kern / sigma / H of yw_ar and mle_ar (deterministic linear algebra)."""
+    """kern / sigma / H of the original estimators (deterministic linear algebra)."""
     out = ref["out"]
     for i in _cases(ref, lambda d, o, b, f, e: o >= b // 2):
         r = ref["py"][i]
@@ -342,12 +398,11 @@ def test_mle_ar_against_literal_loop_and_hessian():
     order = 3
     kern, sigma, H = mle_ar(segs, order)
 
-    # literal translation of the MATLAB double loop for the design matrix
+    # conditional likelihood: targets t = order+1..length (1-based) with full history; the 2-sample segment gives no row
     rows, Y = [], []
     for s in segs:
-        for j in range(1, len(s) + 1):  # MATLAB j = 1..length
-            hist = s[max(1, j - order) - 1 : j - 1]
-            rows.append(np.r_[hist[::-1], np.zeros(order - len(hist))])
+        for j in range(order + 1, len(s) + 1):
+            rows.append(s[j - order - 1 : j - 1][::-1])
             Y.append(s[j - 1])
     X, Y = np.array(rows), np.array(Y)
     np.testing.assert_allclose(kern, np.linalg.lstsq(X, Y, rcond=None)[0], rtol=1e-10)
@@ -378,23 +433,41 @@ def test_yw_ar_against_literal_loop():
     x = [run_ar([0.6, 0.1], 1, n, rng=rng) for n in (500, 300, 3)]
     order = 4
     kern, sigma = yw_ar(x, order)
-    # literal MATLAB loops
-    gamma = np.zeros(order)
-    for lag in range(1, order + 1):
-        counter = 0
-        for s in x:
-            for k in range(1, len(s) - lag + 1):
-                gamma[lag - 1] += s[k - 1] * s[k + lag - 1]
-                counter += 1
-        gamma[lag - 1] /= counter
-    Gamma = np.ones((order, order))
-    for i in range(1, order + 1):
-        for j in range(i + 1, order + 1):
-            Gamma[i - 1, j - 1] = Gamma[j - 1, i - 1] = gamma[abs(i - j) - 1]
-    np.testing.assert_allclose(Gamma @ kern, gamma, rtol=1e-12, atol=1e-15)
-    np.testing.assert_allclose(sigma, np.sqrt(1 - gamma @ kern), rtol=1e-12)
+    # literal loops: mean of the products over all pairs within segments, lag 0 included
+    gamma = np.zeros(order + 1)
+    for lag in range(order + 1):
+        pairs = [s[k] * s[k + lag] for s in x for k in range(len(s) - lag)]
+        gamma[lag] = sum(pairs) / len(pairs)
+    Gamma = np.array([[gamma[abs(i - j)] for j in range(order)] for i in range(order)])
+    np.testing.assert_allclose(Gamma @ kern, gamma[1:], rtol=1e-12, atol=1e-15)
+    np.testing.assert_allclose(sigma, np.sqrt(gamma[0] - gamma[1:] @ kern), rtol=1e-12)
     # a single array is a single segment (as for mle_ar)
     np.testing.assert_array_equal(yw_ar(x[0], order)[0], yw_ar([x[0]], order)[0])
+    # with z-scored data, the only difference to the original is gamma(0) = (N-1)/N instead of 1
+    pooled = np.concatenate(x)
+    z = [(s - pooled.mean()) / pooled.std(ddof=1) for s in x]
+    np.testing.assert_allclose(
+        yw_ar(z, order)[0], _yw_ar_original(z, order)[0], atol=1e-2
+    )
+
+
+def test_short_windows():
+    """Many short stationary windows of a known AR(2), pooled (NOTICE.md, deviations).
+
+    yw_ar and the conditional mle_ar recover the true kernel; the original mle_ar, which treats the history before each window start as 0, is biased.
+    """
+    kern_true = np.array([0.6, 0.2])
+    rng = np.random.default_rng(seed=5)
+    stationary = run_ar(kern_true, 1, 401_000, rng=rng)[1000:]  # burn-in dropped
+    windows = list(stationary.reshape(-1, 10))  # 40000 windows of 10 samples
+    kern_yw, kern_mle = yw_ar(windows, 2)[0], mle_ar(windows, 2)[0]
+    kern_original = _mle_ar_original(windows, 2)[0]
+    print(
+        f"true {kern_true}, yw {kern_yw}, mle {kern_mle}, original mle {kern_original}"
+    )
+    np.testing.assert_allclose(kern_yw, kern_true, atol=0.01)
+    np.testing.assert_allclose(kern_mle, kern_true, atol=0.01)
+    assert np.all(np.abs(kern_original - kern_true) > 0.02)
 
 
 def test_run_ar_matches_matlab_recursion():
@@ -539,7 +612,7 @@ def _histc_series(st, t1, t2, dt):
 def test_ephys_tutorial_values(matlab_binning):
     """d2 +- sddb on the real data vs the values printed in the original tutorial.
 
-    matlab_binning=True: with MATLAB's exact series (incl. histc's extra value) the printed digits are reproduced exactly. matlab_binning=False: our default binning (last bin dropped) moves d2 by at most 0.07% (rtol 1e-3; error bars are 1-2% of d2).
+    matlab_binning=True: with MATLAB's exact series (incl. histc's extra value) and the original estimators, the printed digits are reproduced exactly. matlab_binning=False: our defaults (last bin dropped, conditional mle_ar) move d2 by at most 0.05% and sddb by 0.13% (rtol 1e-3 / 1e-2; error bars are 1-2% of d2).
     """
     d = sio.loadmat(YMV15_MAT, squeeze_me=True)
     st, dt = d["st"], 0.04
@@ -551,11 +624,12 @@ def test_ephys_tutorial_values(matlab_binning):
         "NREM": ("2.5523", "0.0149"),
         "REM": ("1.4795", "0.032053"),
     }
-    r = calc_db(series(st, st.min(), st.max(), dt), 5, dt, 2, **opts)
-    got = {"all": r}
-    for lab in ("WAKE", "NREM", "REM"):
-        x = [series(st, a, b, dt) for a, b in np.atleast_2d(d[lab]).astype(float)]
-        got[lab] = calc_db(x, 5, dt, 2, **opts)
+    with _original_estimators() if matlab_binning else contextlib.nullcontext():
+        r = calc_db(series(st, st.min(), st.max(), dt), 5, dt, 2, **opts)
+        got = {"all": r}
+        for lab in ("WAKE", "NREM", "REM"):
+            x = [series(st, a, b, dt) for a, b in np.atleast_2d(d[lab]).astype(float)]
+            got[lab] = calc_db(x, 5, dt, 2, **opts)
     for k, (db_s, sd_s) in expected.items():
         assert got[k].exit_status == 0
         if matlab_binning:

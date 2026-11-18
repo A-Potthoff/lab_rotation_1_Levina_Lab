@@ -102,7 +102,7 @@ def calc_db(
     # normalize data structure to be a list of 1D float arrays
     x = as_segments(x)
 
-    # z-score with the pooled mean and std of all segments. Centering is essential: the AR model has no intercept, and an uncentered series (e.g. counts around 20) could only be fitted with kernel weights summing to ~1, which is the criticality condition. Scaling gives unit variance, which yw_ar assumes; d_b itself is scale-invariant. ddof=1: MATLAB's std divides by N-1.
+    # z-score with the pooled mean and std of all segments. Centering is essential: the AR model has no intercept, and an uncentered series (e.g. counts around 20) could only be fitted with kernel weights summing to ~1, which is the criticality condition. Scaling makes sigma relative to the data's std; d_b itself is scale-invariant. ddof=1: MATLAB's std divides by N-1.
     pooled = np.concatenate(x)
     mean, std = np.mean(pooled), np.std(pooled, ddof=1)
     x = [(seg - mean) / std for seg in x]
