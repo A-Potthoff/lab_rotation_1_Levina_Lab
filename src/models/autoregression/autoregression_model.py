@@ -1,118 +1,62 @@
+"""Simulation of (fractionally integrated) autoregressive models. Fitting lives in src/analysis/prox_crit/ar.py, the exact power spectrum in src/analysis/power_spectrum.py."""
+
 import numpy as np
-# import matplotlib.pyplot as plt  # unused
-from scipy.signal import lfilter
-from scipy.special import comb
+from scipy.signal import fftconvolve
+from statsmodels.tsa.arima_process import arma_generate_sample, lpol_fima
 
-def get_ar_coeffs(m):
+
+def simulate_arfima(phi=(), d=0.0, sigma=1.0, T=10_000, R=1, burn_in=None, seed=None):
     """
-    Returns AR coefficients phi = [phi_1, ..., phi_m] for (1 - L)^m x_t = e_t.
-    By binomial expansion: phi_k = (-1)^(k+1) * comb(m, k) for k = 1..m.
-    """
-    if m == 0:
-        return np.array([])
-    k = np.arange(1, m + 1)
-    return ((-1) ** (k + 1)) * comb(m, k, exact=False)
+    Simulate R independent (fractional) AR series of length T:
+        x_t = sum_k phi_k x_{t-k} + u_t
+    Classical AR (d = 0): u_t = eps_t, white noise with standard deviation sigma.
+    Fractional (d > 0): u_t = weighted sum of all past noise, sum_j psi_j eps_{t-j}, with slowly decaying weights psi_j ~ j^(d-1) (long memory).
+    Same arguments as power_spectrum(phi=, d=, sigma=) in src/analysis/power_spectrum.py, which gives the exact PSD of this process.
 
+    Examples:
+        phi = [0.9]              AR(1), not critical
+        phi = [1]  or  d = 1     random walk (brown noise); phi = [2, -1] or d = 2: integrated random walk
+        d = 0.5                  pink noise (PSD ~ 1/f)
+        0 < d < 0.5              stationary, with long memory
+    Walks (critical AR, d >= 0.5) never settle into a stationary state: their variance keeps growing, so their statistics depend on burn_in (= how long ago they started).
 
-def verify_moment_conditions(max_m=3):
-    """
-    Taylor expansion of Leftover A(w) = 1 - sum_{k=1}^m phi_k e^{-i w k} around w=0:
-    - Level (w^0):     1 - sum(phi_k) = 0        <=> sum(phi_k) = 1
-    - Slope (w^1):     sum(k * phi_k) = 0
-    - Curvature (w^2): sum(k^2 * phi_k) = 0
-    - Jerk (w^3):      sum(k^3 * phi_k) = 0
-    """
-    print("=" * 78)
-    print("ALGEBRAIC DIAGNOSTIC: MOMENT CONDITIONS ON ECHO COEFFICIENTS (phi_k)")
-    print("=" * 78)
-    header = (f"{'m':<3} | {'phi coefficients':<18} | {'Sum(phi)=1?':<12} | "
-              f"{'Sum(k*phi)=0?':<14} | {'Sum(k^2*phi)=0?':<16} | {'Sum(k^3*phi)=0?'}")
-    print(header)
-    print("-" * 78)
-    
-    for m in range(max_m + 1):
-        phi = get_ar_coeffs(m)
-        k = np.arange(1, m + 1)
-        m0 = np.sum(phi) if m > 0 else 0.0
-        m1 = np.sum(k * phi) if m > 0 else 0.0
-        m2 = np.sum((k ** 2) * phi) if m > 0 else 0.0
-        m3 = np.sum((k ** 3) * phi) if m > 0 else 0.0
-        
-        phi_str = str(phi.astype(int).tolist())
-        print(f"{m:<3} | {phi_str:<18} | {m0:<12.1f} | "
-              f"{m1:<14.1f} | {m2:<16.1f} | {m3:<14.1f}")
-    print("=" * 78 + "\n")
-
-def simulate_ar(phi, n_steps, init_history, sigma=1.0, rng=None):
-    """
-    Simulates x_t = sum_{k=1}^order phi_k x_{t-k} + epsilon_t, epsilon_t ~ N(0, sigma^2).
-    Returns full array of length (len(init_history) + n_steps).
-    """
-    order = len(phi)
-    n_init = len(init_history)
-    if n_init < order:
-        raise ValueError(f"Need at least {order} initial values, got {n_init}.")
-        
-    x = np.zeros(n_init + n_steps, dtype=float)
-    x[:n_init] = init_history
-    
-    if sigma > 0.0:
-        if rng is None:
-            rng = np.random.default_rng()
-        epsilon = rng.normal(0.0, sigma, size=n_init + n_steps)
-    else:
-        epsilon = np.zeros(n_init + n_steps)
-        
-    for t in range(n_init, n_init + n_steps):
-        if order > 0:
-            # x[t-order:t][::-1] orders lags as [x_{t-1}, x_{t-2}, ..., x_{t-order}]
-            x[t] = np.dot(phi, x[t - order:t][::-1]) + epsilon[t]
-        else:
-            x[t] = epsilon[t]
-            
-    return x
-
-def exact_theoretical_std(m, n_steps, sigma=1.0):
-    """
-    Computes the exact analytical standard deviation of x_t at each step t >= 0
-    using the Green's function h_j = comb(j + m - 1, m - 1):
-    Var(x_t) = sigma^2 * sum_{j=0}^{t} h_j^2
-    """
-    j = np.arange(n_steps)
-    if m == 0:
-        return np.full(n_steps, sigma)
-    h_j = comb(j + m - 1, m - 1)
-    var_t = (sigma ** 2) * np.cumsum(h_j ** 2)
-    return np.sqrt(var_t)
-
-
-def run_ar(kern, sigma, T, rng=None, noise=None):
-    """Simulate T steps of the AR model x_t = sum_k kern_k x_{t-k} + sigma eps_t.
-
-    NOT OWN WORK. Python translation of ``runAR`` (from the demos of prox_crit_toolkit, J. S. Sooter et al., https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude); see src/analysis/prox_crit/NOTICE.md.
-
-    Starts from x = 0 before t = 1 (no burn-in), like the original loop. Implemented as the equivalent linear filter (scipy.signal.lfilter with zero initial state), which is exact and much faster than a Python loop.
+    How:
+    1. AR part: statsmodels' arma_generate_sample, started from x = 0.
+    2. Fractional part: statsmodels' lpol_fima gives the weights psi_j; their weighted sum over past noise is computed as an FFT convolution (scipy, fast).
+       statsmodels has no fractional simulator of its own. The order of steps 1 and 2 does not matter (both are linear filters).
 
     Parameters
     ----------
-    kern : array
-        History kernel (kern[k-1] = coefficient of lag k).
+    phi : array-like
+        AR coefficients, phi[k-1] = coefficient of lag k.
+    d : float
+        Fractional integration order, d >= 0.
     sigma : float
         Noise standard deviation.
-    T : int
-        Number of time steps.
-    rng : numpy.random.Generator, optional
-        Random generator for the noise, e.g. ``np.random.default_rng(seed=0)``. MATLAB's randn stream cannot be reproduced, so simulated series differ from MATLAB's sample by sample (not in distribution).
-    noise : (T,) array, optional
-        Pre-drawn standard-normal noise (overrides rng; used for testing).
+    T, R : int
+        Recorded time steps, independent replicas.
+    burn_in : int, optional
+        Steps simulated before the T recorded ones and discarded; the simulation starts from x = 0. Default T, so the slowest part of the long memory (lags up to ~T) is built up before recording. burn_in = 0 reproduces Sooter's runAR.
+    seed : int or numpy.random.Generator, optional
 
     Returns
     -------
-    x : (T,) array
+    x : (R, T) float array
     """
-    kern = np.asarray(kern, dtype=float).ravel()
-    if noise is None:
-        rng = np.random.default_rng() if rng is None else rng
-        noise = rng.standard_normal(int(T))
-    # lfilter solves  x_t - sum_k kern_k x_{t-k} = sigma * eps_t  for x
-    return lfilter([1.0], np.r_[1.0, -kern], sigma * np.asarray(noise, dtype=float))
+    T, R = int(T), int(R)
+    burn_in = T if burn_in is None else int(burn_in)
+    n_steps = burn_in + T
+    rng = np.random.default_rng(seed=seed)
+    # arma_generate_sample takes the lag polynomials incl. lag 0: ar = phi(L) = [1, -phi_1, ...], ma = [1] (no MA part)
+    x = arma_generate_sample(
+        ar=np.r_[1.0, -np.asarray(phi, dtype=float)],
+        ma=[1.0],
+        nsample=(R, n_steps),
+        scale=sigma,
+        distrvs=rng.standard_normal,
+        axis=-1,
+    )
+    if d != 0:
+        psi = lpol_fima(d, n=n_steps)  # psi_0 = 1, ..., psi_{n_steps - 1}; all ones for d = 1 (cumulative sum)
+        x = fftconvolve(x, psi[None, :], axes=-1)[:, :n_steps]  # x_t <- sum_{k <= t} psi_k x_{t-k}
+    return x[:, burn_in:]

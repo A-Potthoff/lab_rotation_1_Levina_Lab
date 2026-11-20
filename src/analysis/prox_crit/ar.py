@@ -1,4 +1,4 @@
-"""Autoregressive (AR) models: fitting them to (possibly segmented) time series. Simulation (``run_ar``) lives in src/models/autoregression/autoregression_model.py.
+"""Autoregressive (AR) models: fitting them to (possibly segmented) time series. Simulation (``simulate_arfima``) lives in src/models/autoregression/autoregression_model.py.
 
 NOT OWN WORK. Python translation of ``yw_ar.m`` and ``mle_ar.m`` from prox_crit_toolkit, J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit, fetched 2026-10-09), licensed CC BY-NC 4.0. Translated by Andre Potthoff (with Claude). Both estimators deviate from the original where it is not exact for short segments (see the docstrings and NOTICE.md).
 

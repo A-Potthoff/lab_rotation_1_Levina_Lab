@@ -4,7 +4,7 @@ NOT OWN WORK. Python translation of the MATLAB prox_crit_toolkit by J. S. Sooter
 
 Idea: fit an AR(n) model to the data; d_b is the smallest KL-divergence rate from that model to any AR(n) model that is critical of type b (characteristic polynomial with a b/2-fold root at z = 1). Units: bits/s. "How distinguishable is this system from a system at criticality?"
 
-Modules: distance (calc_db, the entry point), ar (fit AR models; run_ar is re-exported from src/models/autoregression), manifold (geometry of the critical manifold), kl_rate (the KL-rate formula), plotting (QC plot), spike_counts (binning spike times).
+Modules: distance (calc_db, the entry point), ar (fit AR models; simulation: simulate_arfima in src/models/autoregression), manifold (geometry of the critical manifold), kl_rate (the KL-rate formula), plotting (QC plot), spike_counts (binning spike times).
 
 Glossary of abbreviations used throughout:
 
@@ -28,9 +28,6 @@ Usage::
     db, sddb, kern, sigma, H, kernc, exit_status = calc_db(x, order=5, delta_t=0.04, b=2, fit_method="MaxLikelihood", with_err_bars=True)
 """
 
-# simulation lives in src/models
-from src.models.autoregression.autoregression_model import run_ar
-
 from .ar import as_segments, mle_ar, yw_ar
 from .distance import DbResult, calc_db, minimize_klr_b
 from .kl_rate import get_kernw, get_klr_b, get_sigma_ratio, inv_spectrum
@@ -52,7 +49,6 @@ __all__ = [
     "as_segments",
     "yw_ar",
     "mle_ar",
-    "run_ar",
     "ar_roots",
     "half_order",
     "calc_db_euclidean",

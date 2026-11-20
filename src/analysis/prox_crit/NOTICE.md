@@ -22,7 +22,7 @@ Evidence for the statements below comes from `tests/test_prox_crit.py`, which co
 | `calc_db.m: QC_plot` | `plotting.qc_plot` |
 | `calc_dbv1.m: calc_dbv1` | `manifold.calc_db_euclidean` |
 | `yw_ar.m`, `mle_ar.m` | `ar.yw_ar`, `ar.mle_ar` |
-| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `src.models.autoregression.autoregression_model.run_ar` (re-exported here), `spike_counts.get_spike_counts` (plus `spike_counts.matlab_range`) |
+| `demo.mlx` / `demo_crit_db.m: runAR`, `get_spike_counts` | `src.models.autoregression.autoregression_model.simulate_arfima(phi=kern, sigma=sigma, T=T, burn_in=0)` (own code based on statsmodels, replaces the earlier translation `run_ar`), `spike_counts.get_spike_counts` (plus `spike_counts.matlab_range`) |
 | `demo.mlx` | `notebooks/proxy_crit_Sooter/prox_crit_demo.ipynb` |
 | `demo_crit_db.m` | `notebooks/proxy_crit_Sooter/prox_crit_demo_crit_db.ipynb` |
 | `dbopt.with_QC` | `with_qc` |

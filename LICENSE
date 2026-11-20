@@ -2,7 +2,7 @@ Copyright (c) 2026 Andre Potthoff
 
 This repository is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0), https://creativecommons.org/licenses/by-nc/4.0/. Full text below.
 
-Parts of it are translations of third-party code under the same license, with their own attribution: src/analysis/prox_crit/ and run_ar in src/models/autoregression/autoregression_model.py are translated from prox_crit_toolkit by J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit); see src/analysis/prox_crit/NOTICE.md. The original is kept in src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/.
+Parts of it are translations of third-party code under the same license, with their own attribution: src/analysis/prox_crit/ is translated from prox_crit_toolkit by J. S. Sooter et al. (https://github.com/sam-sooter/prox_crit_toolkit); see src/analysis/prox_crit/NOTICE.md. The original is kept in src/external/proxy_crit_toolkit_sam_sooter_2026_10_09/.
 
 =======================================================================
 

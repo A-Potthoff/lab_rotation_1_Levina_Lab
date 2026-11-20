@@ -40,12 +40,12 @@ from src.analysis.prox_crit import (
     matlab_range,
     minimize_klr_b,
     mle_ar,
-    run_ar,
     yw_ar,
 )
 from src.analysis.prox_crit.kl_rate import inv_spectrum
 from src.analysis.prox_crit.manifold import ar_roots
 from src.config.paths import YMV15_MAT
+from src.models.autoregression.autoregression_model import simulate_arfima
 
 FIX = Path(__file__).parent / "fixtures"
 FITS = ["YuleWalker", "MaxLikelihood"]
@@ -436,7 +436,7 @@ def test_kl_rate_b4_warns_if_quad_fails():
 
 def test_mle_ar_against_literal_loop_and_hessian():
     rng = np.random.default_rng(seed=1)
-    segs = [run_ar([0.5, -0.2, 0.1], 1, n, rng=rng) for n in (400, 250, 2)]
+    segs = [simulate_arfima(phi=[0.5, -0.2, 0.1], T=n, burn_in=0, seed=rng)[0] for n in (400, 250, 2)]
     order = 3
     kern, sigma, H = mle_ar(segs, order)
 
@@ -472,7 +472,7 @@ def test_mle_ar_against_literal_loop_and_hessian():
 
 def test_yw_ar_against_literal_loop():
     rng = np.random.default_rng(seed=2)
-    x = [run_ar([0.6, 0.1], 1, n, rng=rng) for n in (500, 300, 3)]
+    x = [simulate_arfima(phi=[0.6, 0.1], T=n, burn_in=0, seed=rng)[0] for n in (500, 300, 3)]
     order = 4
     kern, sigma = yw_ar(x, order)
     # literal loops: mean of the products over all pairs within segments, lag 0 included
@@ -500,7 +500,7 @@ def test_short_windows():
     """
     kern_true = np.array([0.6, 0.2])
     rng = np.random.default_rng(seed=5)
-    stationary = run_ar(kern_true, 1, 401_000, rng=rng)[1000:]  # burn-in dropped
+    stationary = simulate_arfima(phi=kern_true, T=400_000, burn_in=1000, seed=rng)[0]
     windows = list(stationary.reshape(-1, 10))  # 40000 windows of 10 samples
     kern_yw, kern_mle = yw_ar(windows, 2)[0], mle_ar(windows, 2)[0]
     kern_original = _mle_ar_original(windows, 2)[0]
@@ -512,7 +512,7 @@ def test_short_windows():
     assert np.all(np.abs(kern_original - kern_true) > 0.02)
 
 
-def test_run_ar_matches_matlab_recursion():
+def test_simulate_arfima_matches_matlab_recursion():
     kern = np.array([0.8, 0.2, -0.1])
     noise = np.random.default_rng(seed=3).standard_normal(500)
     x = np.zeros(500)
@@ -520,8 +520,18 @@ def test_run_ar_matches_matlab_recursion():
         hist = x[max(1, t - 3) - 1 : t - 1][::-1]
         x[t - 1] = hist @ kern[: len(hist)] + 1.3 * noise[t - 1]
     np.testing.assert_allclose(
-        run_ar(kern, 1.3, 500, noise=noise), x, rtol=1e-11, atol=1e-13
+        simulate_arfima(phi=kern, sigma=1.3, T=500, burn_in=0, seed=3)[0],  # same seed -> same noise
+        x,
+        rtol=1e-11,
+        atol=1e-13,
     )
+
+
+def test_simulate_arfima_integer_d_is_integrated_ar():
+    # (1 - L)^2 x = eps  <=>  x_t = 2 x_{t-1} - x_{t-2} + eps_t; same seed -> same noise
+    x_fractional = simulate_arfima(d=2, T=2000, R=2, seed=6)
+    x_classical = simulate_arfima(phi=[2, -1], T=2000, R=2, seed=6)
+    np.testing.assert_allclose(x_fractional, x_classical, rtol=1e-8, atol=1e-6)
 
 
 def test_explosive_threshold():
@@ -558,7 +568,7 @@ def test_spike_count_bins_are_half_open():
 # --------------------------------------------------------------------------- #
 @pytest.fixture(scope="module")
 def ar3():
-    return run_ar([0.8, 0.2, -0.1], 1, 5000, rng=np.random.default_rng(seed=4))
+    return simulate_arfima(phi=[0.8, 0.2, -0.1], T=5000, burn_in=0, seed=4)[0]
 
 
 def test_interface_and_error_paths(ar3):
