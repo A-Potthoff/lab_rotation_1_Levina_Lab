@@ -131,6 +131,13 @@ def _auto_burn_in_steps(tau, n_tau=5, cap=10**6):
 
 
 # --------------------------------------------------------------------------- helpers
+def _as_int(value, name):
+    """Whole-number float (eg 1e5, or np.logspace output) -> int; a remainder is an error instead of silent rounding."""
+    if value != int(value):
+        raise ValueError(f"{name} must be a whole number, got {value}")
+    return int(value)
+
+
 def _clip(p, p_max, clip_warning):
     """Clip p at p_max; warns only once per simulation, tracked by the mutable flag clip_warning["issued"]."""
     if not clip_warning["issued"] and np.any(p > p_max):
@@ -246,7 +253,9 @@ def bn_aa_population(
     stop_if_silent : stop once A_t = 0 in all replicas; A and raster are then truncated after that first all-zero step.
                      Default (None): True iff h == 0, where A = 0 is absorbing. For h > 0 the truncated recording is not the full process.
     Returns A (R, T) [(R, T+1) if record_A0; fewer columns if stopped] and, if return_raster, also raster (R, N, <same>).
+    N, T, R may be floats if they are whole numbers (eg T=1e5).
     """
+    N, T, R = _as_int(N, "N"), _as_int(T, "T"), _as_int(R, "R")
     rng = np.random.default_rng(seed=seed)
     lam = lam_of_h(h)
     sigma_eff = (1 - lam) * sigma
@@ -322,6 +331,18 @@ def bn_aa_population(
         init_active=init_active,
         prepend_init=record_A0,
     )
+
+
+def subsample_aa(A, N, f, seed=None):
+    """
+    Activity of a fixed random subset of n = round(f * N) recorded neurons, given the full population activity A (any shape, eg (R, T)).
+
+    In the all-to-all BN the A_t active neurons are a uniformly random set at every step (cf. _raster_from_counts), so the number of active recorded neurons is hypergeometric: n draws without replacement from N neurons, of which A_t are active.
+    Exact for the non-refractory BN. With refractory=True, active sets of consecutive steps are not independent, so it is only an approximation.
+    """
+    rng = np.random.default_rng(seed=seed)
+    n_recorded = int(round(f * N))
+    return rng.hypergeometric(ngood=A, nbad=N - A, nsample=n_recorded)
 
 
 # --------------------------------------------------------------------------- Erdos-Renyi
