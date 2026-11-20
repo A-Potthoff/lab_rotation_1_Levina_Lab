@@ -78,7 +78,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - \# Commment: Wake = ndarray(ndarray(float))
   - WAKE, NREM, REM = ( states.loc[states["state"] == s, ["start_s", "end_s"]].to_numpy() for s in ("WAKE", "NREM", "REM"))
 - or anything similar that is short and helps parsing code more quickly
+- **readability over numpy tricks for small calculations.** for a handful of values or a short recursion, a plain loop or list is easier to read than eg `np.cumprod(np.r_[1.0, ...])`. use vectorised numpy where it matters for speed (long arrays, inner loops).
 - use comment-style comments. not every "the" is necessary, "info" works as well as "information". brevity increases readability more, as long as we stay in this regime of unnecessary grammar. you may use common abbreviations (wrt, eg, s.t.)
+
+## Explanations (markdown, comments, docstrings)
+- **write for a neuroscientist, not a mathematician.** I have to stand in for the results, so I need to understand every explanation without days of math rabbit holes. intuition and plain language first ("each value depends on all past noise, with slowly fading weights"), then at most the one formula I need to use the result.
+- no derivations, dense notation (lag operators, binomial series, Taylor expansions) or jargon without a one-line explanation (eg "Welch segment"), especially for things I did not explicitly ask for. if rigour matters, one plain sentence plus a reference is enough.
+- printed outputs must be self-explanatory: say what each number is and what it is compared to, not just `beta: data 0.78, exact 0.74`.
+- every function documents all its arguments and all its return values (incl. what each element of a returned tuple is), even when they seem self-explanatory.
 
 ## Notebooks
 - Load `jupyter_black` in the first code cell (`%load_ext jupyter_black`), so cells are formatted consistently.
@@ -90,6 +97,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## Structure
 - general functions are good and useful, but **don't export every function definition to source**. Example: if we deal with the data in only ever one notebook, do not write functions for reading in the data into source. Write it in the notebook instead. otherwise, we clutter the source folder with highly-specific underused functions.
 - use **global path variables sparsely**. results, data_dirs, etc are sensible. but not every single data file needs a path in src/config/paths. use it if necessary, don't clutter. you can define paths in notebooks if needed.
+- **no code for textbook facts.** don't write functions (eg one that prints a table of identities) for facts that a markdown cell or comment can state. code is for computing results, not for reciting known theory.
+- **library first.** prefer well-established libraries (numpy, scipy, statsmodels, ...) over own implementations; they are safer and keep the repo small. only write own code when no library does it, and say so in the docstring.
 - the same goes for variables. if we only need a list once for iteration, a "for states in ["WAKE", "REM", "NREM"]" is fine and we don't need a states_list variable for this. use it, if it gets reused, though!
 
 # Workflow
