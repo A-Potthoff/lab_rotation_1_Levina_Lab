@@ -31,6 +31,28 @@ from .manifold import (
     half_order,
 )
 
+### OVERVIEW
+
+# calc_db
+# ├─ minimize_klr_b(kern, b)                             # sections 1–7
+# │  ├─ half_order(b)
+# │  ├─ calc_db_euclidean(kern, b)    → kernc_l2          # start point, full kernel
+# │  ├─ beta_project(kernc_l2, b)     → kernc_start       # start point, free numbers
+# │  ├─ minimize(..., method="SLSQP")                     # calls these two many times:
+# │  │  ├─ objective(x) = get_klr_b(kern, x, b, "integral")
+# │  │  │  ├─ beta_lift(x, b)
+# │  │  │  ├─ get_sigma_ratio(kern, kernc)               # numerical integral #1
+# │  │  │  └─ quad(KL integrand)                         # numerical integral #2
+# │  │  └─ constraint(x) = 0.01 - con(x, b)
+# │  │     └─ beta_lift(x, b), ar_roots(...)
+# │  ├─ beta_lift(result.x, b)        → kernc
+# │  ├─ get_sigma_ratio(kern, kernc)
+# │  └─ explosive(kernc)
+# ├─ unit conversion, optional QC plot                    # section 8
+# └─ error bars: minimize_klr_b(kern + nudge) per entry, H from mle_ar   # section 9
+
+
+
 # Optimizer. The original uses MATLAB's fmincon with
 #   optimoptions('fmincon', 'Display','none', 'Algorithm','sqp', 'ConstraintTolerance',0.01, 'MaxFunctionEvaluations',10000, 'StepTolerance',1e-15)
 # Translation: scipy's SLSQP (also an SQP method; finite-difference gradients like fmincon). maxiter = fmincon's default MaxIterations for 'sqp'. SLSQP has no step or constraint tolerance options; ftol (convergence threshold on the change of the objective) is chosen tight so that SLSQP stops at the minimizer.
@@ -135,7 +157,6 @@ def calc_db(
         db, closest_model, exit_flag = minimize_klr_b(
             kern, b, optimizer=optimizer
         )  # nats/step
-        # The original reads the field kernc here, which does not exist after minimize_klr_b's "invalid model order" branch (order < b/2), so MATLAB crashes right after the intended warning. That branch clearly intends NaN output with exit status 1.
         kernc = closest_model.get("kernc", np.nan)
         return NATS_TO_BITS / delta_t * db, kernc, exit_flag
 
@@ -217,7 +238,7 @@ def minimize_klr_b(kern, b, optimizer="SLSQP"):
     closest_model = {}
     half = half_order(b)  # b/2, raises if b is odd
 
-    if len(kern) < half:
+    if len(kern) < half: # overconstrainted: no critical kernel exists
         exit_flag = 1
         db = np.nan
         warnings.warn("WARNING: invalid model order")
@@ -230,6 +251,7 @@ def minimize_klr_b(kern, b, optimizer="SLSQP"):
     else:
 
         def objective(kernc_reduced):
+            # wrapper such that only kernc_reduced is passed, kern and b are fixed
             return get_klr_b(kern, kernc_reduced, b, "integral")
 
         # Start at the L2-closest point of M_b.

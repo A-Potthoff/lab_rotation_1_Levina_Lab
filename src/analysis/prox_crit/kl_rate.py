@@ -49,7 +49,7 @@ def inv_spectrum(kern):
     coeffs_high_first = [float(c) for c in kern[::-1]]  # kern_n, ..., kern_1
 
     def g(w):
-        if isinstance(w, float):
+        if isinstance(w, float): # if w is a scalar, use Horner's rule for efficiency, else return vector
             z = cmath.exp(-1j * w)
             p = 0j
             for c in coeffs_high_first:  # p = z(kern_1 + z(kern_2 + ... z kern_n))
