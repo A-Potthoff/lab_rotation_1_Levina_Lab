@@ -1,4 +1,5 @@
 from scipy.signal import correlate
+from statsmodels.tsa.arima_process import ArmaProcess
 import numpy as np
 
 def _area_until_threshold(acf, dt, threshold):
@@ -95,3 +96,41 @@ def get_autocorrelation(A, max_lag, dt=1.0, average_acf=True):
     INT_01, ACW_01 = np.array([_area_until_threshold(a, dt, 0.1) for a in acf]).T
 
     return acf, lags, [INT, INT_01, ACW_0, ACW_01]
+
+
+def exact_autocorrelation(max_lag, phi=(), d=0.0):
+    """
+    Exact (theoretical) autocorrelation of an AR model, for lags 0..max_lag. Model arguments as in simulate_arfima (src/models/autoregression).
+
+    Supported: classical AR (phi only) or pure fractional noise (d only), not both together.
+    Only stationary models have an ACF that does not depend on time: AR models away from criticality, and fractional noise with d < 0.5.
+    Walks (critical AR, d >= 0.5) have none: their correlations keep changing as the walk goes on. Then None is returned.
+
+    Parameters
+    ----------
+    max_lag : int
+        Maximum lag in time steps, inclusive.
+    phi : array-like
+        AR coefficients, phi[k-1] = coefficient of lag k.
+    d : float
+        Fractional integration order.
+
+    Returns
+    -------
+    acf : (max_lag + 1,) float array, starting at acf[0] = 1; or None if the model is not stationary.
+    """
+    if len(phi) > 0 and d != 0:
+        raise ValueError("give either phi (classical AR) or d (fractional noise), not both")
+
+    if d == 0:
+        # statsmodels takes the AR polynomial incl. lag 0: [1, -phi_1, -phi_2, ...]
+        process = ArmaProcess(ar=np.r_[1.0, -np.asarray(phi, dtype=float)])
+        return process.acf(lags=max_lag + 1) if process.isstationary else None
+
+    if d >= 0.5:
+        return None
+    # fractional noise: known closed form, each lag follows from the previous one, acf[k] = acf[k-1] * (k - 1 + d) / (k - d); decays like k^(2d - 1)
+    acf = [1.0]
+    for k in range(1, max_lag + 1):
+        acf.append(acf[-1] * (k - 1 + d) / (k - d))
+    return np.array(acf)
