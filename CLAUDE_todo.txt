@@ -1,7 +1,12 @@
 # To-do
 
-
 # Done
+
+- remove the ceq in manifold.py. it is dead code not used.
+  - (Claude, 2026-11-19) stability_constraint returns c only; docstring notes that the original's ceq was only needed for fmincon's interface. Commit 1cb295e.
+
+- rename all "pif" to "bn" (probabilistic integrate and fire to branching network). I don't wanna call it pif anymore
+  - (Claude, 2026-11-19) pif_aa_population -> bn_aa_population, pif_er -> bn_er, PIF -> BN / "branching network" in src, README, NOTICE.md, notebooks (also in your uncommitted notebooks, so they keep running). Commit df35790. Not renamed: legacy/ (historical), src/external/, and your uncommitted sweep work: the save tag "pif_aa_db_sweep" in prox_crit_branching_network.ipynb, the 5 pif_aa_db_sweep_debug__*.pkl files and the "pif_sweep" examples in src/utils/persist.py (renaming the tag without the files would break load()).
 
 - fuck it, just put everything under CC BY-NC. that way the license puzzle has an end!
   - (Claude, 2026-11-18) LICENSE is now CC BY-NC 4.0 (full text, with a pointer to the prox_crit attribution); README, NOTICE.md and docstrings updated. env_startup.ipynb still defaults to MIT for new projects (untouched).

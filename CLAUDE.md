@@ -94,6 +94,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # Workflow
 
-you will finde a **CLAUDE_todo.md** in the project. this is where I put miscelaneous tasks that are not worth a separate prompt. Only consider it for longer tasks in which you work in the repo anyways. Always prioritize the task at hand in a given prompt. Only once you are done, look into the todo list, and work through the tasks. Make separate commits for them. After completion, move the todo to a "done" section in the same CLAUDE_todo file.
+you will finde a **CLAUDE_todo.txt** in the project. this is where I put miscelaneous tasks that are not worth a separate prompt. Only consider it for longer tasks in which you work in the repo anyways. Always prioritize the task at hand in a given prompt. Only once you are done, look into the todo list, and work through the tasks. Make separate commits for them. After completion, move the todo to a "done" section in the same CLAUDE_todo file.
+
+**Missing code I refer to: ask, don't write it.** If I say I added or changed something (a function, file, notebook cell) and it isn't there, or is only half there (eg documented in a docstring but not defined), stop and ask me. Most likely I forgot to paste or save it. Don't write your own version of it: it costs tokens and won't be the one I wrote.
 
 when I ask you to **cleanup** the codebase, I do not want you to alter the code nor remove or explanatory comments. I want you to take care of maintenance, such as updating init files, correcting typos (only if there are ~~obviuos~~ obvious). spot inconsistent variable naming (but before changing, always ask weather you may change the names, and if you do so, do it consistently).
